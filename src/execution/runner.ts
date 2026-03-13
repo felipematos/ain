@@ -19,6 +19,26 @@ export interface RunOptions {
 }
 
 export async function* stream(options: RunOptions): AsyncGenerator<string> {
+  const candidates: Array<{ provider?: string; model?: string }> = [
+    { provider: options.provider, model: options.model },
+    ...(options.fallbackChain ?? []),
+  ];
+
+  let lastError: Error | undefined;
+
+  for (const candidate of candidates) {
+    try {
+      yield* streamOnce({ ...options, provider: candidate.provider, model: candidate.model });
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastError ?? new Error('All streaming candidates failed');
+}
+
+async function* streamOnce(options: RunOptions): AsyncGenerator<string> {
   const { name: providerName, provider } = resolveProvider(options.provider);
   const modelId = resolveModel(options.model, providerName);
   if (!modelId) throw new Error('No model specified and no default model configured.');

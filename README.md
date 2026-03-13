@@ -42,8 +42,9 @@ Human-friendly prompt execution. Defaults to plain text output.
 
 ```bash
 ain ask "Summarize this text" --file ./article.txt
-ain ask "Translate to Portuguese" --model qwen-reason --no-think
+ain ask "Translate to Portuguese" --model qwen-reason --skip-think
 ain ask "..." --stream --route --verbose
+ain ask "What is the capital?" --jsonl        # compact single-line JSON
 echo "some text" | ain ask "Summarize:"
 ```
 
@@ -52,13 +53,15 @@ echo "some text" | ain ask "Summarize:"
 Machine-oriented execution with structured output modes.
 
 ```bash
-ain run --prompt "..." --json                          # JSON envelope
+ain run --prompt "..." --json                          # JSON envelope (pretty-printed)
+ain run --prompt "..." --jsonl                         # compact single-line JSON
 ain run --prompt "..." --schema schema.json            # Schema validation
 ain run --prompt "..." --field name                    # Extract field
-ain run --prompt "..." --policy local-first            # Policy routing
+ain run --prompt "..." --policy local-first            # Policy routing with fallback
 ain run --prompt "..." --dry-run                       # Preview routing
 ain run --prompt "..." --stream                        # Streaming
-ain run --prompt "..." --retry 5                       # Custom retry count
+ain run --prompt "..." --retry 5 --timeout 30000       # Reliability options
+ain run --prompt "..." --skip-think                    # Disable reasoning preamble
 ```
 
 ### `ain providers`
@@ -144,10 +147,14 @@ defaultPolicy: local-first
 policies:
   local-first:
     tiers:
-      fast:    { provider: mac-mini, model: liquid/lfm2.5-1.2b }
-      general: { provider: mac-mini, model: google/gemma-3n-e4b }
+      fast:      { provider: mac-mini, model: liquid/lfm2.5-1.2b }
+      general:   { provider: mac-mini, model: google/gemma-3n-e4b }
       reasoning: { provider: mac-mini, model: qwen3.5-4b-mlx }
+    fallbackChain:
+      - mac-mini/google/gemma-3n-e4b    # try general if tier model fails
 ```
+
+When a provider fails after retries, `run()` and `stream()` automatically try each entry in `fallbackChain` before throwing.
 
 ## Library API
 
@@ -158,13 +165,21 @@ import { run, stream, route, loadConfig, classifyTask } from 'ain-cli';
 const result = await run({ prompt: 'Hello', provider: 'mac-mini' });
 console.log(result.output);
 
-// Stream tokens
+// With fallback chain — tries fast model, falls back to general on failure
+const decision = route({ prompt: 'Classify this email' });
+const result2 = await run({
+  prompt: 'Classify this email',
+  provider: decision.provider,
+  model: decision.model,
+  fallbackChain: decision.fallbackChain,
+});
+
+// Stream tokens (also supports fallbackChain)
 for await (const token of stream({ prompt: 'Tell me a story' })) {
   process.stdout.write(token);
 }
 
 // Route intelligently
-const decision = route({ prompt: 'Classify this email' });
 // { tier: 'fast', provider: 'mac-mini', model: 'liquid/lfm2.5-1.2b', ... }
 
 // Classify a task
@@ -176,7 +191,8 @@ classifyTask('Analyze step by step why this fails'); // 'reasoning'
 | Mode | Flag | Output |
 |------|------|--------|
 | Text | (default) | Plain text to stdout |
-| JSON | `--json` | `{ ok, provider, model, output, usage }` |
+| JSON | `--json` | `{ ok, provider, model, output, usage }` pretty-printed |
+| JSONL | `--jsonl` | Same envelope, compact single line (pipe-friendly) |
 | Schema | `--schema file.json` | Validated JSON object |
 | Field | `--field key` | Single extracted value |
 | Stream | `--stream` | Tokens written progressively |

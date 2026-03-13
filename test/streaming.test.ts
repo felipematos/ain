@@ -59,6 +59,40 @@ describe('stream', () => {
   });
 });
 
+describe('stream — fallback chain', () => {
+  it('falls through to fallback when primary stream fails', async () => {
+    mockChatStream
+      .mockImplementationOnce(() => {
+        throw new Error('HTTP 503: unavailable');
+      })
+      .mockReturnValue(tokens('Fallback', ' response'));
+
+    const { stream } = await import('../src/execution/runner.js');
+    const collected: string[] = [];
+    for await (const tok of stream({
+      prompt: 'Hi',
+      fallbackChain: [{ provider: 'fallback-provider', model: 'fallback-model' }],
+    })) {
+      collected.push(tok);
+    }
+    expect(collected.join('')).toBe('Fallback response');
+    expect(mockChatStream).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws when all streaming candidates fail', async () => {
+    mockChatStream.mockImplementation(() => {
+      throw new Error('HTTP 503: always down');
+    });
+
+    const { stream } = await import('../src/execution/runner.js');
+    const gen = stream({
+      prompt: 'Hi',
+      fallbackChain: [{ provider: 'fallback-provider', model: 'fallback-model' }],
+    });
+    await expect(gen.next()).rejects.toThrow('HTTP 503: always down');
+  });
+});
+
 describe('run with noThink', () => {
   it('adds /no_think system message when noThink=true', async () => {
     const mockChat = vi.fn(async () => ({
