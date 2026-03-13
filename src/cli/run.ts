@@ -22,7 +22,7 @@ export function registerRunCommand(program: Command): void {
     .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
     .option('--system-file <path>', 'Read system prompt from file')
     .option('--route', 'Use intelligent routing to select model automatically')
-    .option('--dry-run', 'Show routing decision without executing')
+    .option('--dry-run', 'Show routing decision without executing (implies --route)')
     .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--tier <tier>', 'Force routing tier: fast, general, reasoning, premium (requires --route or --policy)')
     .option('--stream', 'Stream output token by token')
