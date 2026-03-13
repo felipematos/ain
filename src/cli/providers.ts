@@ -27,8 +27,10 @@ export function registerProviderCommands(program: Command): void {
       const defaultProvider = config.defaults?.provider;
       for (const name of names) {
         const p = config.providers[name];
-        const isDefault = name === defaultProvider ? ' (default)' : '';
-        process.stdout.write(`  ${name}${isDefault}  ${p.kind}  ${p.baseUrl}\n`);
+        const isDefault = name === defaultProvider ? ' *' : '';
+        const modelCount = p.models?.length ?? 0;
+        const models = modelCount > 0 ? `  ${modelCount} model${modelCount === 1 ? '' : 's'}` : '  no models cached';
+        process.stdout.write(`  ${name}${isDefault}  ${p.baseUrl}${models}\n`);
       }
     });
 

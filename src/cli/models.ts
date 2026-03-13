@@ -38,15 +38,17 @@ export function registerModelCommands(program: Command): void {
             }
           } else {
             const cached = provider.models ?? [];
+            const defaultModel = config.defaults?.model;
             if (cached.length === 0) {
               process.stdout.write(`\nProvider: ${name} — no cached models. Run: ain models refresh ${name}\n`);
             } else {
               process.stdout.write(`\nProvider: ${name}\n`);
               for (const model of cached) {
                 const alias = model.alias ? ` (${model.alias})` : '';
+                const isDefault = (model.id === defaultModel || model.alias === defaultModel) ? ' *' : '';
                 const tags = model.tags?.join(', ');
                 const ctx = model.contextWindow ? `  ${Math.round(model.contextWindow / 1024)}k ctx` : '';
-                process.stdout.write(`  ${model.id}${alias}${ctx}${tags ? `  [${tags}]` : ''}\n`);
+                process.stdout.write(`  ${model.id}${alias}${isDefault}${ctx}${tags ? `  [${tags}]` : ''}\n`);
               }
             }
           }
