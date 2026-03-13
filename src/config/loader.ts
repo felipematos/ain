@@ -92,9 +92,10 @@ export function resolveProvider(providerName?: string): { name: string; provider
 }
 
 export function resolveModel(modelAlias?: string, providerName?: string): string | undefined {
+  const config = loadConfig();
+
   if (modelAlias) {
-    // Try to resolve as alias first
-    const config = loadConfig();
+    // Try to resolve as alias within the provider first
     if (providerName) {
       const models = config.providers[providerName]?.models ?? [];
       const byAlias = models.find((m) => m.alias === modelAlias);
@@ -103,10 +104,23 @@ export function resolveModel(modelAlias?: string, providerName?: string): string
     // Fall back to treating as literal model ID
     return modelAlias;
   }
-  const config = loadConfig();
-  // Try provider's default model from models list first
-  if (providerName && config.providers[providerName]?.models?.length) {
-    return config.providers[providerName].models![0].id;
+
+  // No explicit model: check defaults.model first (may itself be an alias)
+  const defaultModel = config.defaults?.model;
+  if (defaultModel) {
+    if (providerName) {
+      const models = config.providers[providerName]?.models ?? [];
+      const byAlias = models.find((m) => m.alias === defaultModel);
+      if (byAlias) return byAlias.id;
+    }
+    return defaultModel;
   }
-  return config.defaults?.model;
+
+  // Last resort: first model in provider's list
+  if (providerName) {
+    const first = config.providers[providerName]?.models?.[0];
+    if (first) return first.id;
+  }
+
+  return undefined;
 }

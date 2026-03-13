@@ -88,7 +88,7 @@ describe('resolveModel alias resolution', () => {
     expect(resolveModel('gpt-4', 'provider')).toBe('gpt-4');
   });
 
-  it('returns default model when no alias provided', async () => {
+  it('returns first model from list when no alias and no defaults.model', async () => {
     const { initConfig, addProvider, resolveModel } = await import('../src/config/loader.js');
     initConfig();
     addProvider('provider', {
@@ -98,6 +98,36 @@ describe('resolveModel alias resolution', () => {
       models: [{ id: 'first-model' }, { id: 'second-model' }],
     });
     expect(resolveModel(undefined, 'provider')).toBe('first-model');
+  });
+
+  it('prefers defaults.model over first model in list', async () => {
+    const { initConfig, addProvider, saveConfig, loadConfig, resolveModel } = await import('../src/config/loader.js');
+    initConfig();
+    addProvider('provider', {
+      kind: 'openai-compatible',
+      baseUrl: 'http://localhost:1234/v1',
+      timeoutMs: 60000,
+      models: [{ id: 'first-model' }, { id: 'second-model' }],
+    });
+    const config = loadConfig();
+    config.defaults = { model: 'second-model' };
+    saveConfig(config);
+    expect(resolveModel(undefined, 'provider')).toBe('second-model');
+  });
+
+  it('resolves defaults.model as alias within provider', async () => {
+    const { initConfig, addProvider, saveConfig, loadConfig, resolveModel } = await import('../src/config/loader.js');
+    initConfig();
+    addProvider('provider', {
+      kind: 'openai-compatible',
+      baseUrl: 'http://localhost:1234/v1',
+      timeoutMs: 60000,
+      models: [{ id: 'actual-model-id', alias: 'my-alias' }],
+    });
+    const config = loadConfig();
+    config.defaults = { model: 'my-alias' };
+    saveConfig(config);
+    expect(resolveModel(undefined, 'provider')).toBe('actual-model-id');
   });
 });
 

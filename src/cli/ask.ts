@@ -67,10 +67,6 @@ export function registerAskCommand(program: Command): void {
           }
         }
 
-        if (opts.verbose) {
-          process.stderr.write(`Using provider: ${resolvedProvider ?? 'default'}, model: ${resolvedModel ?? 'default'}\n`);
-        }
-
         const systemText = opts.systemFile
           ? readFileSync(opts.systemFile as string, 'utf-8').trim()
           : opts.system as string | undefined;
