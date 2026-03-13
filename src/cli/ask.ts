@@ -18,7 +18,8 @@ export function registerAskCommand(program: Command): void {
     .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--tier <tier>', 'Force routing tier: fast, general, reasoning, premium (requires --route or --policy)')
     .option('--stream', 'Stream output token by token')
-    .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models) [alias: --no-think]')
+    .option('--no-think', 'Alias for --skip-think')
     .option('--retry <n>', 'Total request attempts on transient errors (default: 3)', parseInt)
     .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
     .option('--system-file <path>', 'Read system prompt from file')
@@ -85,7 +86,7 @@ export function registerAskCommand(program: Command): void {
           system: systemText,
           temperature: resolvedTemperature,
           maxTokens: resolvedMaxTokens,
-          noThink: opts.skipThink,
+          noThink: opts.skipThink || opts.noThink,
           jsonMode: useJson,  // only instruct model when json/field requested
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,

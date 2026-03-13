@@ -26,7 +26,8 @@ export function registerRunCommand(program: Command): void {
     .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--tier <tier>', 'Force routing tier: fast, general, reasoning, premium (requires --route or --policy)')
     .option('--stream', 'Stream output token by token')
-    .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models) [alias: --no-think]')
+    .option('--no-think', 'Alias for --skip-think')
     .option('-v, --verbose', 'Print provider/model/token info to stderr')
     .action(async (opts) => {
       // useJson = ask the model to return JSON (affects system prompt)
@@ -109,7 +110,7 @@ export function registerRunCommand(program: Command): void {
           maxTokens: resolvedMaxTokens,
           jsonMode: useJson,
           schema,
-          noThink: opts.skipThink,
+          noThink: opts.skipThink || opts.noThink,
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,
           fallbackChain,
