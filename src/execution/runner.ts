@@ -1,4 +1,4 @@
-import { resolveProvider, resolveModel } from '../config/loader.js';
+import { resolveProvider, resolveModel, loadConfig } from '../config/loader.js';
 import { createAdapter } from '../providers/openai-compatible.js';
 import type { ChatMessage } from '../providers/openai-compatible.js';
 import { withRetry } from '../shared/retry.js';
@@ -43,9 +43,16 @@ async function* streamOnce(options: RunOptions): AsyncGenerator<string> {
   const modelId = resolveModel(options.model, providerName);
   if (!modelId) throw new Error('No model specified and no default model configured.');
 
+  const configDefaults = loadConfig().defaults;
+  const effectiveOptions = {
+    ...options,
+    temperature: options.temperature ?? configDefaults?.temperature,
+    maxTokens: options.maxTokens ?? configDefaults?.maxTokens,
+  };
+
   const adapter = createAdapter(provider);
-  const messages: ChatMessage[] = buildMessages(options);
-  const request = buildRequest(modelId, messages, options);
+  const messages: ChatMessage[] = buildMessages(effectiveOptions);
+  const request = buildRequest(modelId, messages, effectiveOptions);
 
   let buffer = '';
   let inThinkBlock = false;
@@ -177,12 +184,18 @@ async function runOnce(options: RunOptions): Promise<RunResult> {
     throw new Error('No model specified and no default model configured. Use --model or set defaults.model in config.');
   }
 
+  // Apply config defaults for temperature/maxTokens when not explicitly set
+  const configDefaults = loadConfig().defaults;
+  const effectiveTemperature = options.temperature ?? configDefaults?.temperature;
+  const effectiveMaxTokens = options.maxTokens ?? configDefaults?.maxTokens;
+  const effectiveOptions = { ...options, temperature: effectiveTemperature, maxTokens: effectiveMaxTokens };
+
   const effectiveProvider = options.timeoutMs
     ? { ...provider, timeoutMs: options.timeoutMs }
     : provider;
   const adapter = createAdapter(effectiveProvider);
-  const messages = buildMessages(options);
-  const request = buildRequest(modelId, messages, options);
+  const messages = buildMessages(effectiveOptions);
+  const request = buildRequest(modelId, messages, effectiveOptions);
 
   const response = await withRetry(
     () => adapter.chat(request),

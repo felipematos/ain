@@ -17,6 +17,7 @@ vi.mock('../src/config/loader.js', () => ({
     },
   })),
   resolveModel: vi.fn(() => 'test-model'),
+  loadConfig: vi.fn(() => ({ version: 1, providers: {}, defaults: {} })),
 }));
 
 function makeChatResponse(content: string, model = 'test-model') {
@@ -59,6 +60,36 @@ describe('run — text mode', () => {
     const req = mockChat.mock.calls[0]![0] as { messages: Array<{ role: string; content: string }> };
     expect(req.messages[0]!.role).toBe('system');
     expect(req.messages[0]!.content).toBe('You are a helpful assistant.');
+  });
+
+  it('applies config defaults for temperature and maxTokens', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      version: 1,
+      providers: {},
+      defaults: { temperature: 0.3, maxTokens: 512 },
+    });
+    mockChat.mockResolvedValue(makeChatResponse('Hi'));
+    const { run } = await import('../src/execution/runner.js');
+    await run({ prompt: 'Hi' });
+    const req = mockChat.mock.calls[0]![0] as { temperature: number; max_tokens: number };
+    expect(req.temperature).toBe(0.3);
+    expect(req.max_tokens).toBe(512);
+  });
+
+  it('explicit options override config defaults', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      version: 1,
+      providers: {},
+      defaults: { temperature: 0.3, maxTokens: 512 },
+    });
+    mockChat.mockResolvedValue(makeChatResponse('Hi'));
+    const { run } = await import('../src/execution/runner.js');
+    await run({ prompt: 'Hi', temperature: 0.9, maxTokens: 100 });
+    const req = mockChat.mock.calls[0]![0] as { temperature: number; max_tokens: number };
+    expect(req.temperature).toBe(0.9);
+    expect(req.max_tokens).toBe(100);
   });
 
   it('orders messages: noThink → system → schema → user', async () => {

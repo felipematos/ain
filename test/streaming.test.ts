@@ -17,6 +17,7 @@ vi.mock('../src/config/loader.js', () => ({
     },
   })),
   resolveModel: vi.fn(() => 'test-model'),
+  loadConfig: vi.fn(() => ({ version: 1, providers: {}, defaults: {} })),
 }));
 
 async function* tokens(...words: string[]): AsyncGenerator<string> {

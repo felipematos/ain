@@ -10,6 +10,7 @@ vi.mock('../src/config/loader.js', () => ({
     provider: { kind: 'openai-compatible', baseUrl: 'http://localhost/v1', timeoutMs: 60000, models: [] },
   })),
   resolveModel: vi.fn(() => 'test-model'),
+  loadConfig: vi.fn(() => ({ version: 1, providers: {}, defaults: {} })),
 }));
 
 function chatReturning(content: string) {
