@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AIN (AI Node) is a standalone CLI and library for running LLM tasks with predictable, scriptable behavior. It is provider-agnostic and designed for terminal use, shell scripts, CI pipelines, and workflow automation.
 
-**Current status:** v0.8.0 — fully implemented, all CLI commands working, 126 unit+integration tests passing.
+**Current status:** v0.8.0 — fully implemented, all CLI commands working, 130 unit+integration tests passing.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ src/
 
 ## CLI Commands
 
-- `ain ask "<prompt>"` — human-friendly prompt execution (`--stream`, `--json`, `--jsonl`, `--route`, `--field`)
+- `ain ask "<prompt>"` — human-friendly prompt execution (`--stream`, `--json`, `--jsonl`, `--route`, `--dry-run`, `--field`)
 - `ain run --prompt "..."` — machine-oriented execution (`--json`, `--jsonl`, `--schema`, `--dry-run`, `--policy`, `--route`)
 - `ain providers add|list|remove|show` — provider management
 - `ain models list|refresh|set` — model catalog and metadata management
@@ -47,7 +47,7 @@ src/
 ## Config Location
 
 - User config: `~/.ain/config.yaml`
-- Project override: `./ain.yaml` (future)
+- Project override: `./ain.yaml` (merges over user config; project providers/defaults take precedence)
 - Secrets via `env:VAR_NAME` pattern
 
 ## Build Commands
