@@ -94,3 +94,67 @@ describe('OpenAICompatibleAdapter.listModels', () => {
     );
   });
 });
+
+describe('OpenAICompatibleAdapter.healthCheck', () => {
+  it('returns ok=true and latencyMs when endpoint is reachable', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ object: 'list', data: [] }));
+    const result = await adapter.healthCheck();
+    expect(result.ok).toBe(true);
+    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('returns ok=false and error when endpoint returns HTTP error', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ error: 'not found' }, 503));
+    const result = await adapter.healthCheck();
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('HTTP 503');
+  });
+});
+
+describe('OpenAICompatibleAdapter.chatStream', () => {
+  it('yields tokens from SSE stream', async () => {
+    const encoder = new TextEncoder();
+    const sseLines = [
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ].join('');
+    const readable = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseLines));
+        controller.close();
+      },
+    });
+    mockFetch.mockResolvedValue({
+      ok: true, status: 200, statusText: 'OK',
+      body: readable,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({}),
+    });
+
+    const tokens: string[] = [];
+    for await (const tok of adapter.chatStream({
+      model: 'test-model',
+      messages: [{ role: 'user', content: 'Hi' }],
+    })) {
+      tokens.push(tok);
+    }
+    expect(tokens.join('')).toBe('Hello world');
+  });
+
+  it('throws on HTTP error during streaming', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false, status: 500, statusText: 'Internal Server Error',
+      body: null,
+      text: () => Promise.resolve('server error'),
+      json: () => Promise.resolve({}),
+    });
+
+    const gen = adapter.chatStream({
+      model: 'test-model',
+      messages: [{ role: 'user', content: 'Hi' }],
+    });
+    await expect(gen.next()).rejects.toThrow('HTTP 500');
+  });
+});
