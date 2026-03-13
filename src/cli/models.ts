@@ -45,7 +45,8 @@ export function registerModelCommands(program: Command): void {
               for (const model of cached) {
                 const alias = model.alias ? ` (${model.alias})` : '';
                 const tags = model.tags?.join(', ');
-                process.stdout.write(`  ${model.id}${alias}${tags ? `  [${tags}]` : ''}\n`);
+                const ctx = model.contextWindow ? `  ${Math.round(model.contextWindow / 1024)}k ctx` : '';
+                process.stdout.write(`  ${model.id}${alias}${ctx}${tags ? `  [${tags}]` : ''}\n`);
               }
             }
           }
