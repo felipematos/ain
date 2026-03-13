@@ -2,7 +2,7 @@ export type ModelTier = 'fast' | 'general' | 'reasoning' | 'premium';
 export type TaskType = 'classification' | 'extraction' | 'generation' | 'reasoning' | 'unknown';
 
 export interface RoutingPolicy {
-  name: string;
+  name?: string;
   description?: string;
   tiers: Partial<Record<ModelTier, TierConfig>>;
   localFirst?: boolean;

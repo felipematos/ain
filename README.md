@@ -44,6 +44,7 @@ Human-friendly prompt execution. Defaults to plain text output.
 ain ask "Summarize this text" --file ./article.txt
 ain ask "Translate to Portuguese" --model qwen-reason --skip-think
 ain ask "..." --stream --route --verbose
+ain ask "..." --route --tier fast              # force fast tier when routing
 ain ask "What is the capital?" --jsonl        # compact single-line JSON
 echo "some text" | ain ask "Summarize:"
 ```
@@ -57,7 +58,8 @@ ain run --prompt "..." --json                          # JSON envelope (pretty-p
 ain run --prompt "..." --jsonl                         # compact single-line JSON
 ain run --prompt "..." --schema schema.json            # Schema validation
 ain run --prompt "..." --field name                    # Extract field
-ain run --prompt "..." --route                          # Auto-route with default policy
+ain run --prompt "..." --route                         # Auto-route with default policy
+ain run --prompt "..." --route --tier reasoning        # Force tier when routing
 ain run --prompt "..." --policy local-first            # Policy routing with fallback
 ain run --prompt "..." --dry-run                       # Preview routing
 ain run --prompt "..." --stream                        # Streaming
@@ -70,6 +72,7 @@ ain run --prompt "..." --skip-think                    # Disable reasoning pream
 ```bash
 ain providers add mac-mini --base-url http://localhost:1234/v1 --set-default
 ain providers add openai --base-url https://api.openai.com/v1 --api-key env:OPENAI_API_KEY
+ain providers add slow-server --base-url http://remote:1234/v1 --timeout 120000
 ain providers list
 ain providers show mac-mini
 ain providers remove mac-mini
@@ -99,6 +102,7 @@ ain doctor --json           # Machine-readable
 ain routing simulate "Classify this as spam"     # Preview routing decision
 ain routing simulate "Write an essay" --json
 ain routing policies                              # List policies
+ain routing policies --verbose                    # Show tier details per policy
 ain routing init-policies                         # Scaffold policies.yaml
 ```
 
@@ -196,7 +200,7 @@ classifyTask('Analyze step by step why this fails'); // 'reasoning'
 | Mode | Flag | Output |
 |------|------|--------|
 | Text | (default) | Plain text to stdout |
-| JSON | `--json` | `{ ok, provider, model, output, usage }` pretty-printed |
+| JSON | `--json` | `{ ok, provider, model, mode, output, usage }` pretty-printed |
 | JSONL | `--jsonl` | Same envelope, compact single line (pipe-friendly) |
 | Schema | `--schema file.json` | JSON envelope with validated object in `output` field |
 | Field | `--field key` | Single extracted value (supports dot notation: `--field address.city`) |

@@ -24,6 +24,7 @@ export function registerRunCommand(program: Command): void {
     .option('--route', 'Use intelligent routing to select model automatically')
     .option('--dry-run', 'Show routing decision without executing')
     .option('--policy <name>', 'Routing policy name (implies --route)')
+    .option('--tier <tier>', 'Force routing tier: fast, general, reasoning, premium (requires --route or --policy)')
     .option('--stream', 'Stream output token by token')
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .option('-v, --verbose', 'Print provider/model/token info to stderr')
@@ -54,7 +55,7 @@ export function registerRunCommand(program: Command): void {
 
         if (opts.dryRun) {
           const { route } = await import('../routing/router.js');
-          const decision = route({ prompt, policyName: opts.policy });
+          const decision = route({ prompt, policyName: opts.policy, tier: opts.tier });
           process.stdout.write(JSON.stringify({ dryRun: true, decision }, null, 2) + '\n');
           return;
         }
@@ -72,7 +73,7 @@ export function registerRunCommand(program: Command): void {
 
         if ((opts.route || opts.policy) && !resolvedProvider && !resolvedModel) {
           const { route } = await import('../routing/router.js');
-          const decision = route({ prompt, policyName: opts.policy });
+          const decision = route({ prompt, policyName: opts.policy, tier: opts.tier });
           resolvedProvider = decision.provider;
           resolvedModel = decision.model;
           resolvedTemperature ??= decision.params?.temperature;

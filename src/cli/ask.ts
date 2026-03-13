@@ -16,6 +16,7 @@ export function registerAskCommand(program: Command): void {
     .option('-v, --verbose', 'Show provider/model info on stderr')
     .option('--route', 'Use intelligent routing to select model automatically')
     .option('--policy <name>', 'Routing policy name (implies --route)')
+    .option('--tier <tier>', 'Force routing tier: fast, general, reasoning, premium (requires --route or --policy)')
     .option('--stream', 'Stream output token by token')
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .option('--retry <n>', 'Total request attempts on transient errors (default: 3)', parseInt)
@@ -54,13 +55,17 @@ export function registerAskCommand(program: Command): void {
         // Resolve provider/model via routing if requested
         let resolvedProvider = opts.provider as string | undefined;
         let resolvedModel = opts.model as string | undefined;
+        let resolvedTemperature = opts.temperature as number | undefined;
+        let resolvedMaxTokens = opts.maxTokens as number | undefined;
         let fallbackChain: Array<{ provider: string; model: string }> | undefined;
 
         if ((opts.route || opts.policy) && !resolvedProvider && !resolvedModel) {
           const { route } = await import('../routing/router.js');
-          const decision = route({ prompt, policyName: opts.policy });
+          const decision = route({ prompt, policyName: opts.policy, tier: opts.tier });
           resolvedProvider = decision.provider;
           resolvedModel = decision.model;
+          resolvedTemperature ??= decision.params?.temperature;
+          resolvedMaxTokens ??= decision.params?.maxTokens;
           fallbackChain = decision.fallbackChain;
           if (opts.verbose) {
             process.stderr.write(`Routing: tier=${decision.tier}, ${decision.rationale}\n`);
@@ -75,8 +80,8 @@ export function registerAskCommand(program: Command): void {
           provider: resolvedProvider,
           model: resolvedModel,
           system: systemText,
-          temperature: opts.temperature,
-          maxTokens: opts.maxTokens,
+          temperature: resolvedTemperature,
+          maxTokens: resolvedMaxTokens,
           noThink: opts.skipThink,
           jsonMode: useJson,  // only instruct model when json/field requested
           maxRetries: opts.retry as number | undefined,

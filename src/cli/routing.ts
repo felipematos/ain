@@ -47,7 +47,8 @@ export function registerRoutingCommands(program: Command): void {
   routing
     .command('policies')
     .description('List available routing policies')
-    .action(() => {
+    .option('-v, --verbose', 'Show tier configuration details')
+    .action((opts) => {
       const policies = loadPolicies();
       if (!policies) {
         process.stdout.write(`No policies file found at ${getPolicyFilePath()}\n`);
@@ -60,6 +61,20 @@ export function registerRoutingCommands(program: Command): void {
         const p = policies.policies[name];
         const isDefault = name === policies.defaultPolicy ? ' *' : '';
         process.stdout.write(`  ${name}${isDefault}  ${p?.description ?? ''}\n`);
+        if (opts.verbose && p) {
+          const tiers = Object.entries(p.tiers);
+          for (const [tier, config] of tiers) {
+            if (!config) continue;
+            const params: string[] = [];
+            if (config.temperature !== undefined) params.push(`temp=${config.temperature}`);
+            if (config.maxTokens !== undefined) params.push(`maxTokens=${config.maxTokens}`);
+            const paramStr = params.length ? `  (${params.join(', ')})` : '';
+            process.stdout.write(`    ${tier}: ${config.provider}/${config.model}${paramStr}\n`);
+          }
+          if (p.fallbackChain?.length) {
+            process.stdout.write(`    fallback: ${p.fallbackChain.join(' → ')}\n`);
+          }
+        }
       }
     });
 

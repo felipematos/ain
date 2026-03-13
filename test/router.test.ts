@@ -76,6 +76,42 @@ policies:
     expect(decision.fallbackChain).toBeUndefined();
     mockPoliciesYaml = null;
   });
+
+  it('includes policy temperature and maxTokens in decision params', async () => {
+    mockPoliciesYaml = `
+version: 1
+defaultPolicy: params-policy
+policies:
+  params-policy:
+    tiers:
+      general:
+        provider: mac-mini
+        model: google/gemma
+        temperature: 0.2
+        maxTokens: 512
+`;
+    const { route } = await import('../src/routing/router.js');
+    const decision = route({ prompt: 'Write a summary', policyName: 'params-policy' });
+    expect(decision.params?.temperature).toBe(0.2);
+    expect(decision.params?.maxTokens).toBe(512);
+    mockPoliciesYaml = null;
+  });
+
+  it('returns undefined params when policy tier has no temperature/maxTokens', async () => {
+    mockPoliciesYaml = `
+version: 1
+defaultPolicy: bare-policy
+policies:
+  bare-policy:
+    tiers:
+      general: { provider: mac-mini, model: google/gemma }
+`;
+    const { route } = await import('../src/routing/router.js');
+    const decision = route({ prompt: 'Write a summary', policyName: 'bare-policy' });
+    expect(decision.params?.temperature).toBeUndefined();
+    expect(decision.params?.maxTokens).toBeUndefined();
+    mockPoliciesYaml = null;
+  });
 });
 
 describe('route', () => {
