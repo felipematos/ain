@@ -28,6 +28,12 @@ export function registerRoutingCommands(program: Command): void {
           process.stdout.write(`Provider: ${decision.provider}\n`);
           process.stdout.write(`Model:    ${decision.model}\n`);
           process.stdout.write(`Rationale: ${decision.rationale}\n`);
+          if (decision.params?.temperature !== undefined || decision.params?.maxTokens !== undefined) {
+            const parts = [];
+            if (decision.params.temperature !== undefined) parts.push(`temperature=${decision.params.temperature}`);
+            if (decision.params.maxTokens !== undefined) parts.push(`maxTokens=${decision.params.maxTokens}`);
+            process.stdout.write(`Params:   ${parts.join(', ')}\n`);
+          }
           if (decision.fallbackChain?.length) {
             process.stdout.write(`Fallback: ${decision.fallbackChain.map((f) => `${f.provider}/${f.model}`).join(' → ')}\n`);
           }
