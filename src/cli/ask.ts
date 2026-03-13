@@ -17,7 +17,9 @@ export function registerAskCommand(program: Command): void {
     .option('--route', 'Use intelligent routing to select model automatically')
     .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--stream', 'Stream output token by token')
-    .option('--no-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('--retry <n>', 'Max retry attempts on transient errors (default: 3)', parseInt)
+    .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
     .option('-j, --json', 'Output JSON envelope')
     .action(async (promptArg: string | undefined, opts) => {
       try {
@@ -60,6 +62,7 @@ export function registerAskCommand(program: Command): void {
           process.stderr.write(`Using provider: ${resolvedProvider ?? 'default'}, model: ${resolvedModel ?? 'default'}\n`);
         }
 
+        const useJson = opts.json || !!opts.field;
         const runOpts = {
           prompt,
           provider: resolvedProvider,
@@ -67,11 +70,12 @@ export function registerAskCommand(program: Command): void {
           system: opts.system,
           temperature: opts.temperature,
           maxTokens: opts.maxTokens,
-          noThink: opts.noThink,
+          noThink: opts.skipThink,
+          jsonMode: useJson,
+          maxRetries: opts.retry as number | undefined,
         };
 
-        if (opts.stream && !opts.json) {
-          // Streaming mode: write tokens directly to stdout
+        if (opts.stream && !useJson) {
           for await (const token of stream(runOpts)) {
             process.stdout.write(token);
           }
@@ -86,7 +90,17 @@ export function registerAskCommand(program: Command): void {
             }
           }
 
-          renderText(result, { json: opts.json });
+          if (opts.field) {
+            const parsed = result.parsedOutput as Record<string, unknown>;
+            const value = parsed?.[opts.field as string];
+            if (value === undefined) {
+              process.stderr.write(`Error: field "${opts.field}" not found in output\n`);
+              process.exit(1);
+            }
+            process.stdout.write(String(value) + '\n');
+          } else {
+            renderText(result, { json: useJson });
+          }
         }
       } catch (err) {
         renderError(err instanceof Error ? err : String(err));

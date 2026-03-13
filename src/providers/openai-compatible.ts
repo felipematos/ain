@@ -1,6 +1,5 @@
 import { resolveApiKey } from '../config/loader.js';
 import type { ProviderConfig, ModelConfig } from '../config/types.js';
-import { withRetry } from '../shared/retry.js';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -61,17 +60,15 @@ export class OpenAICompatibleAdapter {
   }
 
   async listModels(): Promise<ModelsResponse> {
-    const response = await withRetry(() => this.fetch('/models'));
+    const response = await this.fetch('/models');
     return response as ModelsResponse;
   }
 
   async chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-    const response = await withRetry(() =>
-      this.fetch('/chat/completions', {
-        method: 'POST',
-        body: JSON.stringify({ ...request, stream: false }),
-      })
-    );
+    const response = await this.fetch('/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ ...request, stream: false }),
+    });
     return response as ChatCompletionResponse;
   }
 

@@ -21,7 +21,7 @@ export function registerRunCommand(program: Command): void {
     .option('--dry-run', 'Show routing decision without executing')
     .option('--policy <name>', 'Routing policy name')
     .option('--stream', 'Stream output token by token')
-    .option('--no-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .action(async (opts) => {
       const useJson = opts.json || !!opts.schema || !!opts.field;
       try {
@@ -79,7 +79,7 @@ export function registerRunCommand(program: Command): void {
           maxTokens: resolvedMaxTokens,
           jsonMode: useJson,
           schema,
-          noThink: opts.noThink,
+          noThink: opts.skipThink,
           maxRetries: opts.retry as number | undefined,
         };
 
