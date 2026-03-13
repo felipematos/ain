@@ -9,6 +9,7 @@ export {
   getProvider,
   resolveProvider,
   resolveModel,
+  mergeModels,
 } from './config/loader.js';
 export { run, stream, stripMarkdownFences, cleanModelOutput } from './execution/runner.js';
 export { createAdapter } from './providers/openai-compatible.js';

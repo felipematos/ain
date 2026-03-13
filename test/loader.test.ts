@@ -131,6 +131,37 @@ describe('resolveModel alias resolution', () => {
   });
 });
 
+describe('mergeModels', () => {
+  it('adds new server models as bare {id}', async () => {
+    const { mergeModels } = await import('../src/config/loader.js');
+    const result = mergeModels([], ['model-a', 'model-b']);
+    expect(result).toEqual([{ id: 'model-a' }, { id: 'model-b' }]);
+  });
+
+  it('preserves existing metadata for known models', async () => {
+    const { mergeModels } = await import('../src/config/loader.js');
+    const existing = [{ id: 'model-a', alias: 'fast', tags: ['local'] }];
+    const result = mergeModels(existing, ['model-a', 'model-b']);
+    expect(result[0]).toEqual({ id: 'model-a', alias: 'fast', tags: ['local'] });
+    expect(result[1]).toEqual({ id: 'model-b' });
+  });
+
+  it('keeps manually-added models not on server', async () => {
+    const { mergeModels } = await import('../src/config/loader.js');
+    const existing = [{ id: 'offline-model', alias: 'my-model' }];
+    const result = mergeModels(existing, ['server-model']);
+    expect(result).toHaveLength(2);
+    expect(result.find((m) => m.id === 'offline-model')).toEqual({ id: 'offline-model', alias: 'my-model' });
+  });
+
+  it('removes nothing — stale server models are preserved', async () => {
+    const { mergeModels } = await import('../src/config/loader.js');
+    const existing = [{ id: 'old-model' }, { id: 'still-there' }];
+    const result = mergeModels(existing, ['still-there']);
+    expect(result.find((m) => m.id === 'old-model')).toBeDefined();
+  });
+});
+
 describe('resolveProvider', () => {
   it('resolves default provider', async () => {
     const { initConfig, addProvider, saveConfig, loadConfig, resolveProvider } = await import('../src/config/loader.js');

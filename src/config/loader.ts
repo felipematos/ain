@@ -45,6 +45,25 @@ export function initConfig(): AinConfig {
   return config;
 }
 
+/**
+ * Merge a list of server-returned model IDs with the existing configured models.
+ * - Models already in config: their metadata (alias, tags, etc.) is preserved.
+ * - New models from server: added as bare { id } entries.
+ * - Models in config but not on server: kept (may be offline or manually added).
+ */
+export function mergeModels(
+  existing: Array<{ id: string; [key: string]: unknown }>,
+  serverIds: string[],
+): Array<{ id: string; [key: string]: unknown }> {
+  const existingById = new Map(existing.map((m) => [m.id, m]));
+  const serverIdSet = new Set(serverIds);
+  const merged = serverIds.map((id) => existingById.get(id) ?? { id });
+  for (const e of existing) {
+    if (!serverIdSet.has(e.id)) merged.push(e);
+  }
+  return merged;
+}
+
 export function resolveApiKey(apiKey: string | undefined): string | undefined {
   if (!apiKey) return undefined;
   if (apiKey.startsWith('env:')) {

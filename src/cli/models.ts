@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { loadConfig, resolveProvider, saveConfig } from '../config/loader.js';
+import { loadConfig, resolveProvider, saveConfig, mergeModels } from '../config/loader.js';
 import { createAdapter } from '../providers/openai-compatible.js';
 
 export function registerModelCommands(program: Command): void {
@@ -73,8 +73,14 @@ export function registerModelCommands(program: Command): void {
 
           const adapter = createAdapter(provider);
           const response = await adapter.listModels();
-          provider.models = response.data.map((m) => ({ id: m.id }));
-          process.stdout.write(`Refreshed ${response.data.length} models for "${name}".\n`);
+
+          const existingModels = provider.models ?? [];
+          const serverIds = response.data.map((m) => m.id);
+          const newCount = serverIds.filter((id) => !existingModels.find((m) => m.id === id)).length;
+          provider.models = mergeModels(existingModels, serverIds) as typeof provider.models;
+          process.stdout.write(
+            `Refreshed ${name}: ${response.data.length} models (${newCount} new, metadata preserved).\n`,
+          );
         }
 
         saveConfig(config);
