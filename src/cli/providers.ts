@@ -18,11 +18,16 @@ export function registerProviderCommands(program: Command): void {
   providers
     .command('list')
     .description('List all configured providers')
-    .action(() => {
+    .option('--json', 'Output as JSON')
+    .action((opts) => {
       const config = loadConfig();
       const names = Object.keys(config.providers);
       if (names.length === 0) {
         process.stdout.write('No providers configured. Run: ain providers add\n');
+        return;
+      }
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(config.providers, null, 2) + '\n');
         return;
       }
       const defaultProvider = config.defaults?.provider;
