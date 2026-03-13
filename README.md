@@ -83,8 +83,9 @@ ain providers set-default mac-mini
 ### `ain models`
 
 ```bash
-ain models list                          # Cached models
+ain models list                          # Cached models (* = default)
 ain models list --live                   # Fetch from provider API
+ain models list --json                   # Machine-readable JSON
 ain models refresh                       # Update cache
 ain models refresh mac-mini              # For specific provider
 ain models set mac-mini liquid/lfm2.5-1.2b --alias liquid-fast --tag fast --tag local
