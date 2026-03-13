@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { run } from '../execution/runner.js';
+import { run, stream } from '../execution/runner.js';
 import { renderText, renderError } from '../output/renderer.js';
 
 export function registerRunCommand(program: Command): void {
@@ -18,6 +18,8 @@ export function registerRunCommand(program: Command): void {
     .option('--max-tokens <n>', 'Max tokens', parseInt)
     .option('--dry-run', 'Show routing decision without executing')
     .option('--policy <name>', 'Routing policy name')
+    .option('--stream', 'Stream output token by token')
+    .option('--no-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .action(async (opts) => {
       const useJson = opts.json || !!opts.schema;
       try {
@@ -73,7 +75,7 @@ export function registerRunCommand(program: Command): void {
           resolvedMaxTokens ??= decision.params?.maxTokens;
         }
 
-        const result = await run({
+        const runOpts = {
           prompt,
           provider: resolvedProvider,
           model: resolvedModel,
@@ -82,9 +84,18 @@ export function registerRunCommand(program: Command): void {
           maxTokens: resolvedMaxTokens,
           jsonMode: opts.json,
           schema,
-        });
+          noThink: opts.noThink,
+        };
 
-        renderText(result, { json: useJson });
+        if (opts.stream && !useJson) {
+          for await (const token of stream(runOpts)) {
+            process.stdout.write(token);
+          }
+          process.stdout.write('\n');
+        } else {
+          const result = await run(runOpts);
+          renderText(result, { json: useJson });
+        }
       } catch (err) {
         renderError(err instanceof Error ? err : String(err), useJson);
         process.exit(1);

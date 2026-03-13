@@ -70,6 +70,27 @@ describe.skipIf(SKIP)('Integration: OpenAI-compatible adapter', () => {
     expect(chunks.join('')).toBeTruthy();
   });
 
+  it('streams tokens progressively (multiple chunks expected)', async () => {
+    const { OpenAICompatibleAdapter } = await import('../src/providers/openai-compatible.js');
+    const adapter = new OpenAICompatibleAdapter({
+      kind: 'openai-compatible',
+      baseUrl: BASE_URL,
+      timeoutMs: 60000,
+      models: [],
+    });
+    const chunks: string[] = [];
+    for await (const token of adapter.chatStream({
+      model: 'liquid/lfm2.5-1.2b',
+      messages: [{ role: 'user', content: 'Count 1 2 3 4 5 briefly.' }],
+      max_tokens: 30,
+    })) {
+      chunks.push(token);
+    }
+    // Streaming should yield multiple chunks
+    expect(chunks.length).toBeGreaterThanOrEqual(1);
+    expect(chunks.join('')).toMatch(/[1-5]/);
+  });
+
   it('returns schema-shaped JSON via run()', async () => {
     const { run } = await import('../src/execution/runner.js');
     const result = await run({

@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { stringify as stringifyYaml } from 'yaml';
 import {
   loadConfig,
   addProvider,
@@ -33,9 +34,14 @@ export function registerProviderCommands(program: Command): void {
   providers
     .command('show <name>')
     .description('Show provider configuration')
-    .action((name: string) => {
+    .option('--json', 'Output as JSON instead of YAML')
+    .action((name: string, opts) => {
       const provider = getProvider(name);
-      process.stdout.write(JSON.stringify(provider, null, 2) + '\n');
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(provider, null, 2) + '\n');
+      } else {
+        process.stdout.write(stringifyYaml({ [name]: provider }));
+      }
     });
 
   providers
