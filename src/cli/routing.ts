@@ -1,8 +1,7 @@
 import type { Command } from 'commander';
-import { writeFileSync, existsSync } from 'fs';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { route, simulateRoute, getPolicyFilePath, loadPolicies } from '../routing/router.js';
-import { getConfigDir } from '../config/loader.js';
-import { mkdirSync } from 'fs';
+import { getConfigDir, loadConfig } from '../config/loader.js';
 
 export function registerRoutingCommands(program: Command): void {
   const routing = program.command('routing').description('Routing policies and simulation');
@@ -91,6 +90,28 @@ export function registerRoutingCommands(program: Command): void {
       const dir = getConfigDir();
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
+      // Detect configured provider and first model to use as placeholder
+      let providerName = 'my-provider';
+      let fastModel = 'fast-model';
+      let generalModel = 'general-model';
+      let reasoningModel = 'reasoning-model';
+      try {
+        const config = loadConfig();
+        const defaultProvider = config.defaults?.provider ?? Object.keys(config.providers)[0];
+        if (defaultProvider && config.providers[defaultProvider]) {
+          providerName = defaultProvider;
+          const models = config.providers[defaultProvider]!.models ?? [];
+          const taggedFast = models.find((m) => m.tags?.includes('fast'));
+          const taggedGeneral = models.find((m) => m.tags?.includes('general'));
+          const taggedReasoning = models.find((m) => m.tags?.includes('reasoning'));
+          fastModel = taggedFast?.id ?? models[0]?.id ?? fastModel;
+          generalModel = taggedGeneral?.id ?? models[0]?.id ?? generalModel;
+          reasoningModel = taggedReasoning?.id ?? models[0]?.id ?? reasoningModel;
+        }
+      } catch {
+        // No config yet — use placeholder names
+      }
+
       const starter = `version: 1
 defaultPolicy: local-first
 
@@ -100,18 +121,18 @@ policies:
     localFirst: true
     tiers:
       fast:
-        provider: mac-mini
-        model: liquid/lfm2.5-1.2b
+        provider: ${providerName}
+        model: ${fastModel}
         temperature: 0.1
         maxTokens: 512
       general:
-        provider: mac-mini
-        model: google/gemma-3n-e4b
+        provider: ${providerName}
+        model: ${generalModel}
         temperature: 0.7
         maxTokens: 2048
       reasoning:
-        provider: mac-mini
-        model: qwen3.5-4b-mlx
+        provider: ${providerName}
+        model: ${reasoningModel}
         temperature: 0.6
         maxTokens: 4096
 `;
