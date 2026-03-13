@@ -106,33 +106,35 @@ export function registerModelCommands(program: Command): void {
     .command('refresh [provider]')
     .description('Fetch live model list and cache it')
     .action(async (providerName?: string) => {
-      try {
-        const config = loadConfig();
-        const names = providerName ? [providerName] : Object.keys(config.providers);
+      const config = loadConfig();
+      const names = providerName ? [providerName] : Object.keys(config.providers);
+      let hasErrors = false;
 
-        for (const name of names) {
-          const provider = config.providers[name];
-          if (!provider) {
-            process.stderr.write(`Provider "${name}" not found.\n`);
-            continue;
-          }
+      for (const name of names) {
+        const provider = config.providers[name];
+        if (!provider) {
+          process.stderr.write(`Provider "${name}" not found.\n`);
+          hasErrors = true;
+          continue;
+        }
 
+        try {
           const adapter = createAdapter(provider);
           const response = await adapter.listModels();
-
           const existingModels = provider.models ?? [];
           const serverIds = response.data.map((m) => m.id);
           const newCount = serverIds.filter((id) => !existingModels.find((m) => m.id === id)).length;
           provider.models = mergeModels(existingModels, serverIds) as typeof provider.models;
+          saveConfig(config); // save after each success to preserve partial progress
           process.stdout.write(
             `Refreshed ${name}: ${response.data.length} models (${newCount} new, metadata preserved).\n`,
           );
+        } catch (err) {
+          process.stderr.write(`Error refreshing ${name}: ${err instanceof Error ? err.message : String(err)}\n`);
+          hasErrors = true;
         }
-
-        saveConfig(config);
-      } catch (err) {
-        process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
-        process.exit(1);
       }
+
+      if (hasErrors) process.exit(1);
     });
 }
