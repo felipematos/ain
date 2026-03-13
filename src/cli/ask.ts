@@ -84,6 +84,10 @@ export function registerAskCommand(program: Command): void {
           fallbackChain,
         };
 
+        if (opts.stream && useEnvelope) {
+          process.stderr.write('Warning: --stream is not supported with --json/--jsonl; using buffered mode.\n');
+        }
+
         if (opts.stream && !useEnvelope) {
           if (opts.verbose) {
             const { resolveProvider, resolveModel } = await import('../config/loader.js');
