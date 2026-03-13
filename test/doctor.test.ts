@@ -11,6 +11,7 @@ vi.mock('../src/config/loader.js', () => ({
     if (key.startsWith('env:')) return process.env[key.slice(4)];
     return key;
   }),
+  PROJECT_CONFIG_FILENAME: 'ain.yaml',
 }));
 
 vi.mock('../src/providers/openai-compatible.js', () => ({

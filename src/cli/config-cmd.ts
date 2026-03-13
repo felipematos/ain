@@ -1,6 +1,8 @@
 import type { Command } from 'commander';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { stringify as stringifyYaml } from 'yaml';
-import { initConfig, getConfigPath, configExists, loadConfig, saveConfig, getProvider } from '../config/loader.js';
+import { initConfig, getConfigPath, configExists, loadConfig, saveConfig, getProvider, PROJECT_CONFIG_FILENAME } from '../config/loader.js';
 
 export function registerConfigCommands(program: Command): void {
   const config = program.command('config').description('Manage configuration');
@@ -31,9 +33,17 @@ export function registerConfigCommands(program: Command): void {
     .option('--json', 'Output as JSON instead of YAML')
     .action((opts) => {
       const cfg = loadConfig();
+      const projectOverlayPath = join(process.cwd(), PROJECT_CONFIG_FILENAME);
+      const hasOverlay = existsSync(projectOverlayPath);
+
       if (opts.json) {
-        process.stdout.write(JSON.stringify(cfg, null, 2) + '\n');
+        const out: Record<string, unknown> = { ...cfg };
+        if (hasOverlay) out['_projectOverlay'] = projectOverlayPath;
+        process.stdout.write(JSON.stringify(out, null, 2) + '\n');
       } else {
+        if (hasOverlay) {
+          process.stdout.write(`# Sources: ${getConfigPath()} + ${projectOverlayPath}\n`);
+        }
         process.stdout.write(stringifyYaml(cfg));
       }
     });

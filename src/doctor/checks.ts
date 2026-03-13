@@ -1,4 +1,6 @@
-import { loadConfig, getConfigPath, configExists, resolveApiKey } from '../config/loader.js';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { loadConfig, getConfigPath, configExists, resolveApiKey, PROJECT_CONFIG_FILENAME } from '../config/loader.js';
 import { createAdapter } from '../providers/openai-compatible.js';
 
 export interface CheckResult {
@@ -22,6 +24,12 @@ export async function runDoctorChecks(providerFilter?: string): Promise<CheckRes
     return results;
   }
   results.push({ name: 'config-exists', ok: true, message: `Config found at ${getConfigPath()}` });
+
+  // Check 1b: Project overlay
+  const projectOverlayPath = join(process.cwd(), PROJECT_CONFIG_FILENAME);
+  if (existsSync(projectOverlayPath)) {
+    results.push({ name: 'project-overlay', ok: true, message: `Project overlay active`, detail: projectOverlayPath });
+  }
 
   // Check 2: Config is valid
   let config;
