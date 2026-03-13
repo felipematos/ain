@@ -77,6 +77,9 @@ export function registerRunCommand(program: Command): void {
           resolvedTemperature ??= decision.params?.temperature;
           resolvedMaxTokens ??= decision.params?.maxTokens;
           fallbackChain = decision.fallbackChain;
+          if (opts.verbose) {
+            process.stderr.write(`Routing: tier=${decision.tier}, ${decision.rationale}\n`);
+          }
         }
 
         const systemText = opts.systemFile

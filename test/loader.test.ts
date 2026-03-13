@@ -162,6 +162,28 @@ describe('mergeModels', () => {
   });
 });
 
+describe('defaults — temperature and maxTokens', () => {
+  it('persists temperature and maxTokens via saveConfig', async () => {
+    const { initConfig, saveConfig, loadConfig } = await import('../src/config/loader.js');
+    initConfig();
+    const cfg = loadConfig();
+    cfg.defaults = { ...cfg.defaults, temperature: 0.5, maxTokens: 1024 };
+    saveConfig(cfg);
+
+    const reloaded = loadConfig();
+    expect(reloaded.defaults.temperature).toBe(0.5);
+    expect(reloaded.defaults.maxTokens).toBe(1024);
+  });
+
+  it('temperature and maxTokens default to undefined', async () => {
+    const { initConfig, loadConfig } = await import('../src/config/loader.js');
+    initConfig();
+    const cfg = loadConfig();
+    expect(cfg.defaults.temperature).toBeUndefined();
+    expect(cfg.defaults.maxTokens).toBeUndefined();
+  });
+});
+
 describe('resolveProvider', () => {
   it('resolves default provider', async () => {
     const { initConfig, addProvider, saveConfig, loadConfig, resolveProvider } = await import('../src/config/loader.js');

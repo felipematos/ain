@@ -2,20 +2,27 @@ import type { RunResult } from '../execution/runner.js';
 
 export interface OutputOptions {
   json?: boolean;
+  jsonl?: boolean;
   verbose?: boolean;
 }
 
+function buildEnvelope(result: RunResult) {
+  return {
+    ok: result.ok,
+    provider: result.provider,
+    model: result.model,
+    mode: result.parsedOutput !== undefined ? 'json' : 'text',
+    output: result.parsedOutput ?? result.output,
+    usage: result.usage ?? null,
+  };
+}
+
 export function renderText(result: RunResult, options: OutputOptions = {}): void {
-  if (options.json) {
-    const envelope = {
-      ok: result.ok,
-      provider: result.provider,
-      model: result.model,
-      mode: result.parsedOutput !== undefined ? 'json' : 'text',
-      output: result.parsedOutput ?? result.output,
-      usage: result.usage ?? null,
-    };
-    process.stdout.write(JSON.stringify(envelope, null, 2) + '\n');
+  if (options.jsonl) {
+    // Compact single-line JSON (JSONL format) — ideal for piping and batch processing
+    process.stdout.write(JSON.stringify(buildEnvelope(result)) + '\n');
+  } else if (options.json) {
+    process.stdout.write(JSON.stringify(buildEnvelope(result), null, 2) + '\n');
   } else {
     process.stdout.write(result.output + '\n');
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderText, renderError } from '../src/output/renderer.js';
 import type { RunResult } from '../src/execution/runner.js';
+import type { OutputOptions } from '../src/output/renderer.js';
 
 const makeResult = (overrides: Partial<RunResult> = {}): RunResult => ({
   ok: true,
@@ -37,6 +38,34 @@ describe('renderText', () => {
     const written = (spy.mock.calls[0]![0] as string);
     const parsed = JSON.parse(written);
     expect(parsed.output).toEqual({ key: 'value' });
+  });
+});
+
+describe('renderText — JSONL mode', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('writes compact single-line JSON', () => {
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    renderText(makeResult(), { jsonl: true });
+    const written = spy.mock.calls[0]![0] as string;
+    // Must be single line (no embedded newlines in JSON part)
+    expect(written.trim().split('\n')).toHaveLength(1);
+    const parsed = JSON.parse(written);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.output).toBe('Hello, world!');
+  });
+
+  it('JSONL is more compact than JSON', () => {
+    const spyJsonl = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    renderText(makeResult(), { jsonl: true });
+    const jsonlLen = (spyJsonl.mock.calls[0]![0] as string).length;
+    spyJsonl.mockRestore();
+
+    const spyJson = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    renderText(makeResult(), { json: true });
+    const jsonLen = (spyJson.mock.calls[0]![0] as string).length;
+
+    expect(jsonlLen).toBeLessThan(jsonLen);
   });
 });
 

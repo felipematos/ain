@@ -107,6 +107,7 @@ ain config init
 ain config path
 ain config show
 ain config set-default --provider mac-mini --model gemma-general
+ain config set-default --temperature 0.3 --max-tokens 2048
 ```
 
 ## Config File
@@ -133,6 +134,8 @@ providers:
 defaults:
   provider: mac-mini
   model: google/gemma-3n-e4b
+  temperature: 0.7      # optional — applied when not overridden per-call
+  maxTokens: 2048       # optional — applied when not overridden per-call
 ```
 
 Secrets via `env:VAR_NAME`: `apiKey: env:OPENAI_API_KEY`

@@ -1,5 +1,6 @@
 import { loadConfig, getConfigPath, configExists, resolveApiKey } from '../config/loader.js';
 import { createAdapter } from '../providers/openai-compatible.js';
+import { withRetry } from '../shared/retry.js';
 
 export interface CheckResult {
   name: string;
@@ -75,7 +76,8 @@ export async function runDoctorChecks(providerFilter?: string): Promise<CheckRes
 
     // Endpoint reachability
     const adapter = createAdapter(provider);
-    const health = await adapter.healthCheck();
+    const health = await withRetry(() => adapter.healthCheck(), { maxAttempts: 2, initialDelayMs: 500, maxDelayMs: 2000, backoffFactor: 2 })
+      .catch((err) => ({ ok: false as const, error: err instanceof Error ? err.message : String(err) }));
     if (health.ok) {
       results.push({
         name: `provider:${name}:endpoint`,

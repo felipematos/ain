@@ -34,6 +34,16 @@ describe('AinConfig schema', () => {
     expect(config.defaults.provider).toBe('mac-mini');
   });
 
+  it('parses defaults with temperature and maxTokens', async () => {
+    const { AinConfigSchema } = await import('../src/config/types.js');
+    const config = AinConfigSchema.parse({
+      version: 1,
+      defaults: { provider: 'mac-mini', temperature: 0.3, maxTokens: 512 },
+    });
+    expect(config.defaults.temperature).toBe(0.3);
+    expect(config.defaults.maxTokens).toBe(512);
+  });
+
   it('rejects invalid config version', async () => {
     const { AinConfigSchema } = await import('../src/config/types.js');
     expect(() => AinConfigSchema.parse({ version: 2 })).toThrow();
