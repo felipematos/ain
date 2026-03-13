@@ -64,7 +64,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
   };
 
   const response = await adapter.chat(request);
-  const rawOutput = response.choices[0]?.message?.content ?? '';
+  const rawOutput = cleanModelOutput(response.choices[0]?.message?.content ?? '');
 
   let parsedOutput: unknown;
   if (options.jsonMode || options.schema) {
@@ -98,6 +98,14 @@ export function stripMarkdownFences(text: string): string {
   const fenceMatch = text.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/);
   if (fenceMatch?.[1]) return fenceMatch[1].trim();
   return text.trim();
+}
+
+export function cleanModelOutput(text: string): string {
+  // Strip <think>...</think> blocks (Qwen3, DeepSeek reasoning models)
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  // Strip common end-of-sequence tokens
+  cleaned = cleaned.replace(/<\|im_end\|>/g, '').replace(/<\|end\|>/g, '').replace(/<\/s>/g, '');
+  return cleaned.trim();
 }
 
 function validateSchema(data: unknown, schema: object): { valid: boolean; errors: string[] } {

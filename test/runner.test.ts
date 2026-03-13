@@ -111,6 +111,28 @@ describe('run — schema mode', () => {
   });
 });
 
+describe('cleanModelOutput', () => {
+  it('strips <think> blocks', async () => {
+    const { cleanModelOutput } = await import('../src/execution/runner.js');
+    expect(cleanModelOutput('<think>Reasoning here...</think>\nParis')).toBe('Paris');
+  });
+
+  it('strips <|im_end|> tokens', async () => {
+    const { cleanModelOutput } = await import('../src/execution/runner.js');
+    expect(cleanModelOutput('Paris<|im_end|>')).toBe('Paris');
+  });
+
+  it('strips </s> tokens', async () => {
+    const { cleanModelOutput } = await import('../src/execution/runner.js');
+    expect(cleanModelOutput('Paris</s>')).toBe('Paris');
+  });
+
+  it('passes through clean output', async () => {
+    const { cleanModelOutput } = await import('../src/execution/runner.js');
+    expect(cleanModelOutput('Paris')).toBe('Paris');
+  });
+});
+
 describe('stripMarkdownFences', () => {
   it('strips ```json fences', async () => {
     const { stripMarkdownFences } = await import('../src/execution/runner.js');

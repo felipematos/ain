@@ -58,13 +58,28 @@ export function registerRunCommand(program: Command): void {
           schema = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
         }
 
+        // Use routing when --policy is specified (without --dry-run)
+        let resolvedProvider = opts.provider as string | undefined;
+        let resolvedModel = opts.model as string | undefined;
+        let resolvedTemperature = opts.temperature as number | undefined;
+        let resolvedMaxTokens = opts.maxTokens as number | undefined;
+
+        if (opts.policy && !resolvedProvider && !resolvedModel) {
+          const { route } = await import('../routing/router.js');
+          const decision = route({ prompt, policyName: opts.policy });
+          resolvedProvider = decision.provider;
+          resolvedModel = decision.model;
+          resolvedTemperature ??= decision.params?.temperature;
+          resolvedMaxTokens ??= decision.params?.maxTokens;
+        }
+
         const result = await run({
           prompt,
-          provider: opts.provider,
-          model: opts.model,
+          provider: resolvedProvider,
+          model: resolvedModel,
           system: opts.system,
-          temperature: opts.temperature,
-          maxTokens: opts.maxTokens,
+          temperature: resolvedTemperature,
+          maxTokens: resolvedMaxTokens,
           jsonMode: opts.json,
           schema,
         });

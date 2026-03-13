@@ -14,6 +14,8 @@ export function registerAskCommand(program: Command): void {
     .option('--temperature <n>', 'Temperature (0-2)', parseFloat)
     .option('--max-tokens <n>', 'Max tokens', parseInt)
     .option('-v, --verbose', 'Show provider/model info on stderr')
+    .option('--route', 'Use intelligent routing to select model automatically')
+    .option('--policy <name>', 'Routing policy name (implies --route)')
     .action(async (promptArg: string | undefined, opts) => {
       try {
         let prompt = promptArg;
@@ -37,14 +39,28 @@ export function registerAskCommand(program: Command): void {
           process.exit(1);
         }
 
+        // Resolve provider/model via routing if requested
+        let resolvedProvider = opts.provider as string | undefined;
+        let resolvedModel = opts.model as string | undefined;
+
+        if ((opts.route || opts.policy) && !resolvedProvider && !resolvedModel) {
+          const { route } = await import('../routing/router.js');
+          const decision = route({ prompt, policyName: opts.policy });
+          resolvedProvider = decision.provider;
+          resolvedModel = decision.model;
+          if (opts.verbose) {
+            process.stderr.write(`Routing: tier=${decision.tier}, ${decision.rationale}\n`);
+          }
+        }
+
         if (opts.verbose) {
-          process.stderr.write(`Using provider: ${opts.provider ?? 'default'}, model: ${opts.model ?? 'default'}\n`);
+          process.stderr.write(`Using provider: ${resolvedProvider ?? 'default'}, model: ${resolvedModel ?? 'default'}\n`);
         }
 
         const result = await run({
           prompt,
-          provider: opts.provider,
-          model: opts.model,
+          provider: resolvedProvider,
+          model: resolvedModel,
           system: opts.system,
           temperature: opts.temperature,
           maxTokens: opts.maxTokens,
