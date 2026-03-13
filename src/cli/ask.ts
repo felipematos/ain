@@ -18,7 +18,7 @@ export function registerAskCommand(program: Command): void {
     .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--stream', 'Stream output token by token')
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
-    .option('--retry <n>', 'Max retry attempts on transient errors (default: 3)', parseInt)
+    .option('--retry <n>', 'Total request attempts on transient errors (default: 3)', parseInt)
     .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
     .option('--system-file <path>', 'Read system prompt from file')
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')

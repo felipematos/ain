@@ -18,7 +18,7 @@ export function registerRunCommand(program: Command): void {
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
     .option('--temperature <n>', 'Temperature (0-2)', parseFloat)
     .option('--max-tokens <n>', 'Max tokens', parseInt)
-    .option('--retry <n>', 'Max retry attempts on transient errors (default: 3)', parseInt)
+    .option('--retry <n>', 'Total request attempts on transient errors (default: 3)', parseInt)
     .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
     .option('--system-file <path>', 'Read system prompt from file')
     .option('--dry-run', 'Show routing decision without executing')
