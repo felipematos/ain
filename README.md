@@ -45,6 +45,7 @@ ain ask "Summarize this text" --file ./article.txt
 ain ask "Translate to Portuguese" --model qwen-reason --skip-think
 ain ask "..." --stream --route --verbose
 ain ask "..." --route --tier fast              # force fast tier when routing
+ain ask "..." --dry-run                        # preview routing decision
 ain ask "What is the capital?" --jsonl        # compact single-line JSON
 echo "some text" | ain ask "Summarize:"
 ```
