@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { stringify as stringifyYaml } from 'yaml';
-import { initConfig, getConfigPath, configExists, loadConfig, saveConfig } from '../config/loader.js';
+import { initConfig, getConfigPath, configExists, loadConfig, saveConfig, getProvider } from '../config/loader.js';
 
 export function registerConfigCommands(program: Command): void {
   const config = program.command('config').description('Manage configuration');
@@ -49,6 +49,14 @@ export function registerConfigCommands(program: Command): void {
       if (!opts.provider && !opts.model && opts.temperature === undefined && opts.maxTokens === undefined) {
         process.stderr.write('Error: Specify at least one of --provider, --model, --temperature, --max-tokens.\n');
         process.exit(1);
+      }
+      if (opts.provider) {
+        try {
+          getProvider(opts.provider as string);
+        } catch {
+          process.stderr.write(`Error: Provider "${opts.provider as string}" not found. Run: ain providers list\n`);
+          process.exit(1);
+        }
       }
       const cfg = loadConfig();
       if (opts.provider) cfg.defaults = { ...cfg.defaults, provider: opts.provider as string };

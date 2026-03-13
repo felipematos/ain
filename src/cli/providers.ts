@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { stringify as stringifyYaml } from 'yaml';
+import { ZodError } from 'zod';
 import {
   loadConfig,
   addProvider,
@@ -80,15 +81,9 @@ export function registerProviderCommands(program: Command): void {
           process.stdout.write(`Provider "${name}" ${verb}.\n`);
         }
       } catch (err) {
-        // Improve Zod validation error messages
-        if (err instanceof Error && err.message.startsWith('[')) {
-          try {
-            const issues = JSON.parse(err.message) as Array<{ path: string[]; message: string }>;
-            const details = issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
-            process.stderr.write(`Error: Invalid provider config — ${details}\n`);
-          } catch {
-            process.stderr.write(`Error: ${err.message}\n`);
-          }
+        if (err instanceof ZodError) {
+          const details = err.errors.map((i) => `${i.path.join('.') || 'root'}: ${i.message}`).join(', ');
+          process.stderr.write(`Error: Invalid provider config — ${details}\n`);
         } else {
           process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
         }

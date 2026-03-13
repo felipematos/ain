@@ -5,6 +5,8 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { AinConfig, ProviderConfig } from './types.js';
 import { AinConfigSchema } from './types.js';
 
+export const PROJECT_CONFIG_FILENAME = 'ain.yaml';
+
 export function getConfigDir(): string {
   return join(homedir(), '.ain');
 }
@@ -19,12 +21,22 @@ export function configExists(): boolean {
 
 export function loadConfig(): AinConfig {
   const configPath = getConfigPath();
-  if (!existsSync(configPath)) {
-    return AinConfigSchema.parse({ version: 1 });
+  const base: AinConfig = existsSync(configPath)
+    ? AinConfigSchema.parse(parseYaml(readFileSync(configPath, 'utf-8')))
+    : AinConfigSchema.parse({ version: 1 });
+
+  // Apply project-level overlay from ./ain.yaml if present
+  const projectPath = join(process.cwd(), PROJECT_CONFIG_FILENAME);
+  if (existsSync(projectPath)) {
+    const overlay = AinConfigSchema.parse(parseYaml(readFileSync(projectPath, 'utf-8')));
+    return {
+      ...base,
+      providers: { ...base.providers, ...overlay.providers },
+      defaults: { ...base.defaults, ...overlay.defaults },
+    };
   }
-  const raw = readFileSync(configPath, 'utf-8');
-  const parsed = parseYaml(raw);
-  return AinConfigSchema.parse(parsed);
+
+  return base;
 }
 
 export function saveConfig(config: AinConfig): void {

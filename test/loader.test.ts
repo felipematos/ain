@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync } from 'fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir, homedir } from 'os';
 import { join } from 'path';
 
@@ -207,5 +207,71 @@ describe('resolveProvider', () => {
     const { initConfig, resolveProvider } = await import('../src/config/loader.js');
     initConfig();
     expect(() => resolveProvider()).toThrow('No provider specified');
+  });
+});
+
+describe('project config overlay (./ain.yaml)', () => {
+  const projectConfig = join(process.cwd(), 'ain.yaml');
+
+  afterEach(() => {
+    try { rmSync(projectConfig); } catch {}
+  });
+
+  it('merges project providers over user config', async () => {
+    const { initConfig, addProvider, loadConfig } = await import('../src/config/loader.js');
+    initConfig();
+    addProvider('user-provider', {
+      kind: 'openai-compatible',
+      baseUrl: 'http://user.host/v1',
+      timeoutMs: 60000,
+      models: [],
+    });
+
+    // Write project overlay
+    writeFileSync(projectConfig, [
+      'version: 1',
+      'providers:',
+      '  project-provider:',
+      '    kind: openai-compatible',
+      '    baseUrl: http://project.host/v1',
+    ].join('\n'), 'utf-8');
+
+    const config = loadConfig();
+    expect(config.providers['user-provider']).toBeDefined();
+    expect(config.providers['project-provider']).toBeDefined();
+    expect(config.providers['project-provider']!.baseUrl).toBe('http://project.host/v1');
+  });
+
+  it('project defaults override user defaults', async () => {
+    const { initConfig, saveConfig, loadConfig } = await import('../src/config/loader.js');
+    initConfig();
+    const cfg = loadConfig();
+    cfg.defaults = { temperature: 0.5, model: 'user-model' };
+    saveConfig(cfg);
+
+    writeFileSync(projectConfig, [
+      'version: 1',
+      'defaults:',
+      '  model: project-model',
+      '  temperature: 0.1',
+    ].join('\n'), 'utf-8');
+
+    const merged = loadConfig();
+    expect(merged.defaults.model).toBe('project-model');
+    expect(merged.defaults.temperature).toBe(0.1);
+  });
+
+  it('user config is unchanged when no project overlay exists', async () => {
+    const { initConfig, addProvider, loadConfig } = await import('../src/config/loader.js');
+    initConfig();
+    addProvider('only-provider', {
+      kind: 'openai-compatible',
+      baseUrl: 'http://only.host/v1',
+      timeoutMs: 60000,
+      models: [],
+    });
+
+    const config = loadConfig();
+    expect(Object.keys(config.providers)).toEqual(['only-provider']);
   });
 });
