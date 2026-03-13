@@ -65,7 +65,12 @@ export function registerRunCommand(program: Command): void {
 
         let schema: object | undefined;
         if (opts.schema) {
-          schema = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
+          try {
+            schema = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Failed to load schema file "${opts.schema as string}": ${msg}`);
+          }
         }
 
         let resolvedProvider = opts.provider as string | undefined;

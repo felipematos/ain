@@ -86,6 +86,8 @@ ain models list                          # Cached models
 ain models list --live                   # Fetch from provider API
 ain models refresh                       # Update cache
 ain models refresh mac-mini              # For specific provider
+ain models set mac-mini liquid/lfm2.5-1.2b --alias liquid-fast --tag fast --tag local
+ain models set mac-mini qwen3.5-4b-mlx --context 32768
 ```
 
 ### `ain doctor`

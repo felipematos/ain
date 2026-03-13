@@ -58,6 +58,51 @@ export function registerModelCommands(program: Command): void {
     });
 
   models
+    .command('set <provider> <model>')
+    .description('Set metadata for a cached model (alias, tags, context window)')
+    .option('--alias <name>', 'Set alias for the model')
+    .option('--tag <tag>', 'Add a tag (can be specified multiple times)', (val: string, prev: string[]) => [...prev, val], [] as string[])
+    .option('--remove-tag <tag>', 'Remove a tag')
+    .option('--context <n>', 'Set context window size in tokens', parseInt)
+    .option('--max-tokens <n>', 'Set max tokens for the model', parseInt)
+    .action((providerName: string, modelId: string, opts) => {
+      try {
+        const config = loadConfig();
+        const provider = config.providers[providerName];
+        if (!provider) {
+          process.stderr.write(`Error: Provider "${providerName}" not found.\n`);
+          process.exit(1);
+          return;
+        }
+        const models = provider.models ?? [];
+        const model = models.find((m) => m.id === modelId || m.alias === modelId);
+        if (!model) {
+          process.stderr.write(`Error: Model "${modelId}" not found under provider "${providerName}". Run: ain models refresh ${providerName}\n`);
+          process.exit(1);
+          return;
+        }
+        if (opts.alias) model.alias = opts.alias as string;
+        if ((opts.tag as string[]).length > 0) {
+          const existing = new Set(model.tags ?? []);
+          for (const t of opts.tag as string[]) existing.add(t);
+          model.tags = Array.from(existing);
+        }
+        if (opts.removeTag) {
+          model.tags = (model.tags ?? []).filter((t) => t !== opts.removeTag as string);
+        }
+        if (opts.context !== undefined) model.contextWindow = opts.context as number;
+        if (opts.maxTokens !== undefined) model.maxTokens = opts.maxTokens as number;
+        saveConfig(config);
+        const alias = model.alias ? ` (${model.alias})` : '';
+        const tags = model.tags?.length ? `  [${model.tags.join(', ')}]` : '';
+        process.stdout.write(`Updated ${providerName}/${model.id}${alias}${tags}\n`);
+      } catch (err) {
+        process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(1);
+      }
+    });
+
+  models
     .command('refresh [provider]')
     .description('Fetch live model list and cache it')
     .action(async (providerName?: string) => {
