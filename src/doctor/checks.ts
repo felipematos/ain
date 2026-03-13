@@ -98,13 +98,15 @@ export async function runDoctorChecks(providerFilter?: string): Promise<CheckRes
   return results;
 }
 
+const useColor = process.stdout.isTTY && !process.env['NO_COLOR'];
+
 export function renderDoctorResults(results: CheckResult[]): void {
   const allOk = results.every((r) => r.ok);
 
   for (const result of results) {
     const icon = result.ok ? '✓' : '✗';
-    const status = result.ok ? '\x1b[32m' : '\x1b[31m';
-    const reset = '\x1b[0m';
+    const status = useColor ? (result.ok ? '\x1b[32m' : '\x1b[31m') : '';
+    const reset = useColor ? '\x1b[0m' : '';
     process.stdout.write(`${status}${icon}${reset} ${result.name}: ${result.message}\n`);
     if (result.detail) {
       process.stdout.write(`  ${result.detail}\n`);
@@ -113,9 +115,13 @@ export function renderDoctorResults(results: CheckResult[]): void {
 
   process.stdout.write('\n');
   if (allOk) {
-    process.stdout.write('\x1b[32mAll checks passed.\x1b[0m\n');
+    const green = useColor ? '\x1b[32m' : '';
+    const reset = useColor ? '\x1b[0m' : '';
+    process.stdout.write(`${green}All checks passed.${reset}\n`);
   } else {
+    const red = useColor ? '\x1b[31m' : '';
+    const reset = useColor ? '\x1b[0m' : '';
     const failed = results.filter((r) => !r.ok).length;
-    process.stderr.write(`\x1b[31m${failed} check(s) failed.\x1b[0m\n`);
+    process.stderr.write(`${red}${failed} check(s) failed.${reset}\n`);
   }
 }
