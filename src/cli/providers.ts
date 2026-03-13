@@ -36,11 +36,16 @@ export function registerProviderCommands(program: Command): void {
     .description('Show provider configuration')
     .option('--json', 'Output as JSON instead of YAML')
     .action((name: string, opts) => {
-      const provider = getProvider(name);
-      if (opts.json) {
-        process.stdout.write(JSON.stringify(provider, null, 2) + '\n');
-      } else {
-        process.stdout.write(stringifyYaml({ [name]: provider }));
+      try {
+        const provider = getProvider(name);
+        if (opts.json) {
+          process.stdout.write(JSON.stringify(provider, null, 2) + '\n');
+        } else {
+          process.stdout.write(stringifyYaml({ [name]: provider }));
+        }
+      } catch (err) {
+        process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(1);
       }
     });
 

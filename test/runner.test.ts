@@ -233,6 +233,12 @@ describe('cleanModelOutput', () => {
     const { cleanModelOutput } = await import('../src/execution/runner.js');
     expect(cleanModelOutput('Paris')).toBe('Paris');
   });
+
+  it('strips unclosed <think> blocks (model never finished thinking)', async () => {
+    const { cleanModelOutput } = await import('../src/execution/runner.js');
+    expect(cleanModelOutput('<think>reasoning that never ends...')).toBe('');
+    expect(cleanModelOutput('Before thought<think>partial reasoning...')).toBe('Before thought');
+  });
 });
 
 describe('stripMarkdownFences', () => {

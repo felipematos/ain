@@ -246,7 +246,9 @@ export function stripMarkdownFences(text: string): string {
 
 export function cleanModelOutput(text: string): string {
   // Strip <think>...</think> blocks (Qwen3, DeepSeek reasoning models)
+  // Also strip unclosed <think> blocks (model started thinking but never finished)
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  cleaned = cleaned.replace(/<think>[\s\S]*$/, ''); // strip unclosed think block
   // Strip common end-of-sequence tokens
   cleaned = cleaned.replace(/<\|im_end\|>/g, '').replace(/<\|end\|>/g, '').replace(/<\/s>/g, '');
   return cleaned.trim();
