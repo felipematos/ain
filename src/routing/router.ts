@@ -21,11 +21,16 @@ export function route(request: RoutingRequest): RoutingDecision {
   const policies = loadPolicies();
 
   // Try policy-based routing first
-  if (request.policyName && policies) {
-    const policy = policies.policies[request.policyName];
-    if (policy) {
-      return routeByPolicy(request, policy);
+  if (request.policyName) {
+    if (!policies) {
+      throw new Error(`Policy "${request.policyName}" requested but no policies file found at ${getPolicyFilePath()}`);
     }
+    const policy = policies.policies[request.policyName];
+    if (!policy) {
+      const available = Object.keys(policies.policies).join(', ') || '(none)';
+      throw new Error(`Policy "${request.policyName}" not found. Available: ${available}`);
+    }
+    return routeByPolicy(request, policy);
   }
 
   // Default policy if available

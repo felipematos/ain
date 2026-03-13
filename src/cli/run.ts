@@ -37,6 +37,9 @@ export function registerRunCommand(program: Command): void {
         let prompt = opts.prompt as string | undefined;
 
         if (opts.file) {
+          if (opts.prompt) {
+            process.stderr.write('Warning: --file overrides --prompt.\n');
+          }
           prompt = readFileSync(opts.file as string, 'utf-8').trim();
         }
 

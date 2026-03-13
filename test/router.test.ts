@@ -114,6 +114,30 @@ policies:
   });
 });
 
+describe('route — policy not found errors', () => {
+  it('throws when named policy does not exist in policies file', async () => {
+    mockPoliciesYaml = `
+version: 1
+defaultPolicy: real-policy
+policies:
+  real-policy:
+    tiers:
+      general: { provider: mac-mini, model: google/gemma }
+`;
+    const { route } = await import('../src/routing/router.js');
+    expect(() => route({ prompt: 'Hi', policyName: 'nonexistent-policy' }))
+      .toThrow('Policy "nonexistent-policy" not found');
+    mockPoliciesYaml = null;
+  });
+
+  it('throws when named policy is requested but no policies file exists', async () => {
+    mockPoliciesYaml = null; // no file
+    const { route } = await import('../src/routing/router.js');
+    expect(() => route({ prompt: 'Hi', policyName: 'some-policy' }))
+      .toThrow('no policies file found');
+  });
+});
+
 describe('route', () => {
   it('routes fast tasks to fast model', async () => {
     const { route } = await import('../src/routing/router.js');

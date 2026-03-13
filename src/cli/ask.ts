@@ -33,8 +33,11 @@ export function registerAskCommand(program: Command): void {
       try {
         let prompt = promptArg;
 
-        // Read from file if specified
+        // Read from file if specified (overrides positional arg)
         if (opts.file) {
+          if (promptArg) {
+            process.stderr.write('Warning: --file overrides the positional prompt argument.\n');
+          }
           prompt = readFileSync(opts.file, 'utf-8').trim();
         }
 
