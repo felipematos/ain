@@ -1,6 +1,7 @@
 import { resolveProvider, resolveModel } from '../config/loader.js';
 import { createAdapter } from '../providers/openai-compatible.js';
 import type { ChatMessage } from '../providers/openai-compatible.js';
+import { withRetry } from '../shared/retry.js';
 
 export interface RunOptions {
   prompt: string;
@@ -12,6 +13,7 @@ export interface RunOptions {
   jsonMode?: boolean;
   schema?: object;
   noThink?: boolean;
+  maxRetries?: number;
 }
 
 export async function* stream(options: RunOptions): AsyncGenerator<string> {
@@ -138,7 +140,10 @@ export async function run(options: RunOptions): Promise<RunResult> {
   const messages = buildMessages(options);
   const request = buildRequest(modelId, messages, options);
 
-  const response = await adapter.chat(request);
+  const response = await withRetry(
+    () => adapter.chat(request),
+    options.maxRetries !== undefined ? { maxAttempts: options.maxRetries } : {},
+  );
   const rawOutput = cleanModelOutput(response.choices[0]?.message?.content ?? '');
 
   let parsedOutput: unknown;

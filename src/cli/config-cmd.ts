@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { stringify as stringifyYaml } from 'yaml';
 import { initConfig, getConfigPath, configExists, loadConfig, saveConfig } from '../config/loader.js';
 
 export function registerConfigCommands(program: Command): void {
@@ -27,9 +28,14 @@ export function registerConfigCommands(program: Command): void {
   config
     .command('show')
     .description('Show current configuration')
-    .action(() => {
+    .option('--json', 'Output as JSON instead of YAML')
+    .action((opts) => {
       const cfg = loadConfig();
-      process.stdout.write(JSON.stringify(cfg, null, 2) + '\n');
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(cfg, null, 2) + '\n');
+      } else {
+        process.stdout.write(stringifyYaml(cfg));
+      }
     });
 
   config

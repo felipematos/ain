@@ -1,82 +1,193 @@
 # AIN
 
-AIN (**AI Node**) is a standalone open-source CLI for registering LLM providers/models, executing prompts in different output modes, and later enabling intelligent model routing.
-
-## Vision
-
-AIN is designed to be:
-
-- **OpenClaw-independent**
-- **CLI-first**
-- **workflow-friendly**
-- **config-driven**
-- **provider-agnostic**
-- **ready for structured outputs and routing**
-
-The core idea is simple: small AI tasks should be easy to run anywhere — terminal, scripts, CI, n8n, cron jobs, internal tools, and larger agent systems.
-
-## Product Scope
-
-AIN has two separable concerns:
-
-1. **AIN Core**
-   - standalone CLI
-   - provider/model registry
-   - prompt execution
-   - freeform / JSON / schema-driven outputs
-   - predictable machine-friendly behavior
-
-2. **Intelligent Routing Layer**
-   - choose the best model for a task
-   - route by modality, complexity, latency, cost, and policy
-   - support edge/local-first execution patterns
-
-This repository starts with **AIN Core first** and will add routing as a second layer.
-
-## Planned Capabilities
-
-- Register providers from terminal
-- Store config in YAML or JSON
-- Support OpenAI-compatible providers first
-- Support model catalogs per provider
-- Freeform text output
-- Standardized JSON output
-- Schema-constrained structured output
-- Non-interactive shell-safe operation
-- Clean exit codes
-- Provider health checks
-- Optional local model support
-- Later: intelligent routing policies
-
-## Example UX
+**AIN (AI Node)** is a standalone CLI and library for running LLM tasks with predictable, scriptable behavior. Provider-agnostic, shell-safe, and built for automation.
 
 ```bash
-ain ask "What is the capital of Brazil?"
-# Brasilia
-
-ain ask "Extract the company name and invoice total" \
-  --schema invoice.schema.json \
-  --input ./invoice.txt
-
-ain providers add openai-compatible local-lm \
-  --base-url https://example.local/v1 \
-  --api-key env:LOCAL_LM_API_KEY
-
-ain models list
-ain doctor
-ain route "Summarize this contract"
+npm install -g ain-cli
 ```
 
-## Status
+## Quick Start
 
-Early planning / repository bootstrap.
+```bash
+# Set up a provider (OpenAI-compatible: LM Studio, Ollama, local servers, OpenAI)
+ain config init
+ain providers add mac-mini --base-url http://localhost:1234/v1 --set-default
+ain models refresh
 
-See:
+# Ask a question
+ain ask "What is the capital of Brazil?"
+# Brasília
 
-- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [ROADMAP.md](./ROADMAP.md)
+# Stream the response
+ain ask "Explain quantum entanglement briefly" --stream
+
+# Get JSON output
+ain run --prompt "Get info about France" --json
+
+# Schema-validated structured output
+ain run --prompt "Extract company info" --schema company.schema.json
+
+# Extract a single field
+ain run --prompt "Return country facts about Japan" --schema facts.json --field capital
+
+# Use intelligent routing (picks the best model automatically)
+ain ask "Classify this email as spam or not" --route
+```
+
+## Commands
+
+### `ain ask [prompt]`
+
+Human-friendly prompt execution. Defaults to plain text output.
+
+```bash
+ain ask "Summarize this text" --file ./article.txt
+ain ask "Translate to Portuguese" --model qwen-reason --no-think
+ain ask "..." --stream --route --verbose
+echo "some text" | ain ask "Summarize:"
+```
+
+### `ain run`
+
+Machine-oriented execution with structured output modes.
+
+```bash
+ain run --prompt "..." --json                          # JSON envelope
+ain run --prompt "..." --schema schema.json            # Schema validation
+ain run --prompt "..." --field name                    # Extract field
+ain run --prompt "..." --policy local-first            # Policy routing
+ain run --prompt "..." --dry-run                       # Preview routing
+ain run --prompt "..." --stream                        # Streaming
+ain run --prompt "..." --retry 5                       # Custom retry count
+```
+
+### `ain providers`
+
+```bash
+ain providers add mac-mini --base-url http://localhost:1234/v1 --set-default
+ain providers list
+ain providers show mac-mini
+ain providers remove mac-mini
+ain providers set-default mac-mini
+```
+
+### `ain models`
+
+```bash
+ain models list                          # Cached models
+ain models list --live                   # Fetch from provider API
+ain models refresh                       # Update cache
+ain models refresh mac-mini              # For specific provider
+```
+
+### `ain doctor`
+
+```bash
+ain doctor                  # Check all providers
+ain doctor --provider mac-mini
+ain doctor --json           # Machine-readable
+```
+
+### `ain routing`
+
+```bash
+ain routing simulate "Classify this as spam"     # Preview routing decision
+ain routing simulate "Write an essay" --json
+ain routing policies                              # List policies
+ain routing init-policies                         # Scaffold policies.yaml
+```
+
+### `ain config`
+
+```bash
+ain config init
+ain config path
+ain config show
+ain config set-default --provider mac-mini --model gemma-general
+```
+
+## Config File
+
+`~/.ain/config.yaml`:
+
+```yaml
+version: 1
+providers:
+  mac-mini:
+    kind: openai-compatible
+    baseUrl: http://localhost:1234/v1
+    timeoutMs: 60000
+    models:
+      - id: liquid/lfm2.5-1.2b
+        alias: liquid-fast
+        tags: [local, fast, cheap]
+      - id: google/gemma-3n-e4b
+        alias: gemma-general
+        tags: [local, general]
+      - id: qwen3.5-4b-mlx
+        alias: qwen-reason
+        tags: [local, reasoning]
+defaults:
+  provider: mac-mini
+  model: google/gemma-3n-e4b
+```
+
+Secrets via `env:VAR_NAME`: `apiKey: env:OPENAI_API_KEY`
+
+## Routing Policies
+
+`~/.ain/policies.yaml`:
+
+```yaml
+version: 1
+defaultPolicy: local-first
+policies:
+  local-first:
+    tiers:
+      fast:    { provider: mac-mini, model: liquid/lfm2.5-1.2b }
+      general: { provider: mac-mini, model: google/gemma-3n-e4b }
+      reasoning: { provider: mac-mini, model: qwen3.5-4b-mlx }
+```
+
+## Library API
+
+```typescript
+import { run, stream, route, loadConfig, classifyTask } from 'ain-cli';
+
+// Run a prompt
+const result = await run({ prompt: 'Hello', provider: 'mac-mini' });
+console.log(result.output);
+
+// Stream tokens
+for await (const token of stream({ prompt: 'Tell me a story' })) {
+  process.stdout.write(token);
+}
+
+// Route intelligently
+const decision = route({ prompt: 'Classify this email' });
+// { tier: 'fast', provider: 'mac-mini', model: 'liquid/lfm2.5-1.2b', ... }
+
+// Classify a task
+classifyTask('Analyze step by step why this fails'); // 'reasoning'
+```
+
+## Output Modes
+
+| Mode | Flag | Output |
+|------|------|--------|
+| Text | (default) | Plain text to stdout |
+| JSON | `--json` | `{ ok, provider, model, output, usage }` |
+| Schema | `--schema file.json` | Validated JSON object |
+| Field | `--field key` | Single extracted value |
+| Stream | `--stream` | Tokens written progressively |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error (bad config, invalid schema, provider unreachable) |
 
 ## License
 
-TBD
+MIT

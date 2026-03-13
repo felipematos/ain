@@ -10,27 +10,27 @@ export function registerRunCommand(program: Command): void {
     .option('--prompt <text>', 'Prompt text')
     .option('-f, --file <path>', 'Read prompt from file')
     .option('-p, --provider <name>', 'Provider to use')
-    .option('-m, --model <id>', 'Model to use')
+    .option('-m, --model <id>', 'Model to use (accepts alias)')
     .option('-s, --system <text>', 'System prompt')
     .option('--json', 'Output JSON envelope')
     .option('--schema <path>', 'Path to JSON schema file for structured output')
+    .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
     .option('--temperature <n>', 'Temperature (0-2)', parseFloat)
     .option('--max-tokens <n>', 'Max tokens', parseInt)
+    .option('--retry <n>', 'Max retry attempts on transient errors (default: 3)', parseInt)
     .option('--dry-run', 'Show routing decision without executing')
     .option('--policy <name>', 'Routing policy name')
     .option('--stream', 'Stream output token by token')
     .option('--no-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .action(async (opts) => {
-      const useJson = opts.json || !!opts.schema;
+      const useJson = opts.json || !!opts.schema || !!opts.field;
       try {
         let prompt = opts.prompt as string | undefined;
 
-        // Read from file if specified
         if (opts.file) {
           prompt = readFileSync(opts.file as string, 'utf-8').trim();
         }
 
-        // Read from stdin if no prompt provided
         if (!prompt && !process.stdin.isTTY) {
           const chunks: Buffer[] = [];
           for await (const chunk of process.stdin) {
@@ -44,13 +44,9 @@ export function registerRunCommand(program: Command): void {
           process.exit(1);
         }
 
-        // Dry run: show routing decision
         if (opts.dryRun) {
           const { route } = await import('../routing/router.js');
-          const decision = route({
-            prompt,
-            policyName: opts.policy,
-          });
+          const decision = route({ prompt, policyName: opts.policy });
           process.stdout.write(JSON.stringify({ dryRun: true, decision }, null, 2) + '\n');
           return;
         }
@@ -60,7 +56,6 @@ export function registerRunCommand(program: Command): void {
           schema = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
         }
 
-        // Use routing when --policy is specified (without --dry-run)
         let resolvedProvider = opts.provider as string | undefined;
         let resolvedModel = opts.model as string | undefined;
         let resolvedTemperature = opts.temperature as number | undefined;
@@ -82,9 +77,10 @@ export function registerRunCommand(program: Command): void {
           system: opts.system,
           temperature: resolvedTemperature,
           maxTokens: resolvedMaxTokens,
-          jsonMode: opts.json,
+          jsonMode: useJson,
           schema,
           noThink: opts.noThink,
+          maxRetries: opts.retry as number | undefined,
         };
 
         if (opts.stream && !useJson) {
@@ -94,7 +90,18 @@ export function registerRunCommand(program: Command): void {
           process.stdout.write('\n');
         } else {
           const result = await run(runOpts);
-          renderText(result, { json: useJson });
+
+          if (opts.field) {
+            const parsed = result.parsedOutput as Record<string, unknown>;
+            const value = parsed?.[opts.field as string];
+            if (value === undefined) {
+              process.stderr.write(`Error: field "${opts.field}" not found in output\n`);
+              process.exit(1);
+            }
+            process.stdout.write(String(value) + '\n');
+          } else {
+            renderText(result, { json: useJson });
+          }
         }
       } catch (err) {
         renderError(err instanceof Error ? err : String(err), useJson);
