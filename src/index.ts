@@ -13,6 +13,7 @@ export {
   resolveModel,
   resolveApiKey,
   mergeModels,
+  PROJECT_CONFIG_FILENAME,
 } from './config/loader.js';
 export { run, stream, stripMarkdownFences, cleanModelOutput } from './execution/runner.js';
 export { createAdapter } from './providers/openai-compatible.js';

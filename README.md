@@ -148,6 +148,24 @@ defaults:
 
 Secrets via `env:VAR_NAME`: `apiKey: env:OPENAI_API_KEY`
 
+## Project Config Overlay
+
+Place an `ain.yaml` file in your project directory to override settings for that project:
+
+```yaml
+# ./ain.yaml — project-level overrides, checked into the repo
+version: 1
+providers:
+  project-llm:
+    kind: openai-compatible
+    baseUrl: http://team-server:1234/v1
+defaults:
+  provider: project-llm
+  model: specific-model
+```
+
+The project config merges over `~/.ain/config.yaml` — project providers and defaults take precedence. `ain config show` and `ain doctor` indicate when a project overlay is active.
+
 ## Routing Policies
 
 `~/.ain/policies.yaml`:
