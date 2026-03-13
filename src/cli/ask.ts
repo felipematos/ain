@@ -15,6 +15,7 @@ export function registerAskCommand(program: Command): void {
     .option('--max-tokens <n>', 'Max tokens', parseInt)
     .option('-v, --verbose', 'Show provider/model info on stderr')
     .option('--route', 'Use intelligent routing to select model automatically')
+    .option('--dry-run', 'Show routing decision without executing (implies --route)')
     .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--tier <tier>', 'Force routing tier: fast, general, reasoning, premium (requires --route or --policy)')
     .option('--stream', 'Stream output token by token')
@@ -54,6 +55,13 @@ export function registerAskCommand(program: Command): void {
         if (!prompt) {
           process.stderr.write('Error: No prompt provided. Pass as argument, --file, or via stdin.\n');
           process.exit(1);
+        }
+
+        if (opts.dryRun) {
+          const { route } = await import('../routing/router.js');
+          const decision = route({ prompt, policyName: opts.policy, tier: opts.tier });
+          process.stdout.write(JSON.stringify({ dryRun: true, decision }, null, 2) + '\n');
+          return;
         }
 
         // Resolve provider/model via routing if requested
