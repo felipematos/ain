@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { loadConfig, resolveProvider, saveConfig, mergeModels } from '../config/loader.js';
+import { loadConfig, loadUserConfig, resolveProvider, saveConfig, mergeModels } from '../config/loader.js';
 import { createAdapter } from '../providers/openai-compatible.js';
 
 export function registerModelCommands(program: Command): void {
@@ -69,7 +69,8 @@ export function registerModelCommands(program: Command): void {
     .option('--max-tokens <n>', 'Set max tokens for the model', parseInt)
     .action((providerName: string, modelId: string, opts) => {
       try {
-        const config = loadConfig();
+        // Use loadUserConfig to avoid writing overlay providers to user config
+        const config = loadUserConfig();
         const provider = config.providers[providerName];
         if (!provider) {
           process.stderr.write(`Error: Provider "${providerName}" not found.\n`);
@@ -108,7 +109,8 @@ export function registerModelCommands(program: Command): void {
     .command('refresh [provider]')
     .description('Fetch live model list and cache it')
     .action(async (providerName?: string) => {
-      const config = loadConfig();
+      // Use loadUserConfig so we only save to user config, not overlay providers
+      const config = loadUserConfig();
       const names = providerName ? [providerName] : Object.keys(config.providers);
       let hasErrors = false;
 

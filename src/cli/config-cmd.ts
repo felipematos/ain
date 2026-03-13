@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { stringify as stringifyYaml } from 'yaml';
-import { initConfig, getConfigPath, configExists, loadConfig, saveConfig, getProvider, PROJECT_CONFIG_FILENAME } from '../config/loader.js';
+import { initConfig, getConfigPath, configExists, loadConfig, loadUserConfig, saveConfig, getProvider, PROJECT_CONFIG_FILENAME } from '../config/loader.js';
 
 export function registerConfigCommands(program: Command): void {
   const config = program.command('config').description('Manage configuration');
@@ -68,7 +68,8 @@ export function registerConfigCommands(program: Command): void {
           process.exit(1);
         }
       }
-      const cfg = loadConfig();
+      // Use loadUserConfig so we only update user config, not the overlay
+      const cfg = loadUserConfig();
       if (opts.provider) cfg.defaults = { ...cfg.defaults, provider: opts.provider as string };
       if (opts.model) cfg.defaults = { ...cfg.defaults, model: opts.model as string };
       if (opts.temperature !== undefined) cfg.defaults = { ...cfg.defaults, temperature: opts.temperature as number };

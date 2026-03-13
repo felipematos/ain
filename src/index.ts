@@ -1,6 +1,7 @@
 // AIN Library exports
 export {
   loadConfig,
+  loadUserConfig,
   saveConfig,
   initConfig,
   getConfigPath,

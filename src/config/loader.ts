@@ -19,11 +19,25 @@ export function configExists(): boolean {
   return existsSync(getConfigPath());
 }
 
-export function loadConfig(): AinConfig {
+/**
+ * Load the user config file only (~/.ain/config.yaml), without project overlay.
+ * Used by mutation functions (addProvider, removeProvider, saveConfig) so that
+ * project-overlay providers are never accidentally written back to user config.
+ */
+export function loadUserConfig(): AinConfig {
   const configPath = getConfigPath();
-  const base: AinConfig = existsSync(configPath)
-    ? AinConfigSchema.parse(parseYaml(readFileSync(configPath, 'utf-8')))
-    : AinConfigSchema.parse({ version: 1 });
+  if (!existsSync(configPath)) {
+    return AinConfigSchema.parse({ version: 1 });
+  }
+  return AinConfigSchema.parse(parseYaml(readFileSync(configPath, 'utf-8')));
+}
+
+/**
+ * Load config with project overlay applied (./ain.yaml merges over user config).
+ * Use this for all read operations — execution, routing, doctor checks, etc.
+ */
+export function loadConfig(): AinConfig {
+  const base = loadUserConfig();
 
   // Apply project-level overlay from ./ain.yaml if present
   const projectPath = join(process.cwd(), PROJECT_CONFIG_FILENAME);
@@ -86,13 +100,15 @@ export function resolveApiKey(apiKey: string | undefined): string | undefined {
 }
 
 export function addProvider(name: string, provider: ProviderConfig): void {
-  const config = loadConfig();
+  // Use loadUserConfig to avoid writing overlay providers back to user config
+  const config = loadUserConfig();
   config.providers[name] = provider;
   saveConfig(config);
 }
 
 export function removeProvider(name: string): void {
-  const config = loadConfig();
+  // Use loadUserConfig so we only remove from user config, not overlay
+  const config = loadUserConfig();
   if (!config.providers[name]) {
     throw new Error(`Provider "${name}" not found`);
   }
@@ -101,6 +117,7 @@ export function removeProvider(name: string): void {
 }
 
 export function getProvider(name: string): ProviderConfig {
+  // Use loadConfig (with overlay) so overlay providers are discoverable
   const config = loadConfig();
   const provider = config.providers[name];
   if (!provider) {

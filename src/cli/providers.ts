@@ -3,6 +3,7 @@ import { stringify as stringifyYaml } from 'yaml';
 import { ZodError } from 'zod';
 import {
   loadConfig,
+  loadUserConfig,
   addProvider,
   removeProvider,
   getProvider,
@@ -70,12 +71,13 @@ export function registerProviderCommands(program: Command): void {
 
       try {
         const provider = ProviderConfigSchema.parse(providerData);
-        const isUpdate = !!loadConfig().providers[name];
+        // Check user config to determine if this is an update (not overlay)
+        const isUpdate = !!loadUserConfig().providers[name];
         addProvider(name, provider);
 
         const verb = isUpdate ? 'updated' : 'added';
         if (opts.setDefault) {
-          const config = loadConfig();
+          const config = loadUserConfig();
           config.defaults = { ...config.defaults, provider: name };
           saveConfig(config);
           process.stdout.write(`Provider "${name}" ${verb} and set as default.\n`);
@@ -111,8 +113,8 @@ export function registerProviderCommands(program: Command): void {
     .description('Set the default provider')
     .action((name: string) => {
       try {
-        getProvider(name); // ensure exists
-        const config = loadConfig();
+        getProvider(name); // ensure exists (checks merged config including overlay)
+        const config = loadUserConfig();
         config.defaults = { ...config.defaults, provider: name };
         saveConfig(config);
         process.stdout.write(`Default provider set to "${name}".\n`);

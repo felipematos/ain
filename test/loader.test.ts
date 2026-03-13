@@ -274,4 +274,30 @@ describe('project config overlay (./ain.yaml)', () => {
     const config = loadConfig();
     expect(Object.keys(config.providers)).toEqual(['only-provider']);
   });
+
+  it('addProvider does not write overlay providers back to user config', async () => {
+    const { initConfig, addProvider, loadUserConfig } = await import('../src/config/loader.js');
+    initConfig();
+
+    // Project overlay with a provider
+    writeFileSync(projectConfig, [
+      'version: 1',
+      'providers:',
+      '  overlay-only:',
+      '    kind: openai-compatible',
+      '    baseUrl: http://overlay.host/v1',
+    ].join('\n'), 'utf-8');
+
+    // Add a new provider — this should NOT persist overlay-only to user config
+    addProvider('user-added', {
+      kind: 'openai-compatible',
+      baseUrl: 'http://user.host/v1',
+      timeoutMs: 60000,
+      models: [],
+    });
+
+    const userConfig = loadUserConfig();
+    expect(userConfig.providers['user-added']).toBeDefined();
+    expect(userConfig.providers['overlay-only']).toBeUndefined();
+  });
 });
