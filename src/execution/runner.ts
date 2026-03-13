@@ -50,7 +50,10 @@ async function* streamOnce(options: RunOptions): AsyncGenerator<string> {
     maxTokens: options.maxTokens ?? configDefaults?.maxTokens,
   };
 
-  const adapter = createAdapter(provider);
+  const effectiveProvider = options.timeoutMs
+    ? { ...provider, timeoutMs: options.timeoutMs }
+    : provider;
+  const adapter = createAdapter(effectiveProvider);
   const messages: ChatMessage[] = buildMessages(effectiveOptions);
   const request = buildRequest(modelId, messages, effectiveOptions);
 

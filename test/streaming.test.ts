@@ -94,6 +94,21 @@ describe('stream — fallback chain', () => {
   });
 });
 
+describe('stream — timeoutMs override', () => {
+  it('applies timeoutMs from options to the provider adapter', async () => {
+    mockChatStream.mockReturnValue(tokens('Hi'));
+    const { createAdapter } = await import('../src/providers/openai-compatible.js');
+    const { stream } = await import('../src/execution/runner.js');
+    const collected: string[] = [];
+    for await (const tok of stream({ prompt: 'Hi', timeoutMs: 5000 })) {
+      collected.push(tok);
+    }
+    // Verify createAdapter was called with the overridden timeout
+    const adapterCallArg = vi.mocked(createAdapter).mock.calls.at(-1)![0] as { timeoutMs: number };
+    expect(adapterCallArg.timeoutMs).toBe(5000);
+  });
+});
+
 describe('run with noThink', () => {
   it('adds /no_think system message when noThink=true', async () => {
     const mockChat = vi.fn(async () => ({
