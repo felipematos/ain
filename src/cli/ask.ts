@@ -127,7 +127,8 @@ export function registerAskCommand(program: Command): void {
               process.stderr.write(`Error: field "${opts.field}" not found in output\n`);
               process.exit(1);
             }
-            process.stdout.write(String(value) + '\n');
+            const out = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+            process.stdout.write(out + '\n');
           } else {
             renderText(result, { json: opts.json || !!opts.field, jsonl: opts.jsonl });
           }
