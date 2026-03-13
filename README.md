@@ -57,6 +57,7 @@ ain run --prompt "..." --json                          # JSON envelope (pretty-p
 ain run --prompt "..." --jsonl                         # compact single-line JSON
 ain run --prompt "..." --schema schema.json            # Schema validation
 ain run --prompt "..." --field name                    # Extract field
+ain run --prompt "..." --route                          # Auto-route with default policy
 ain run --prompt "..." --policy local-first            # Policy routing with fallback
 ain run --prompt "..." --dry-run                       # Preview routing
 ain run --prompt "..." --stream                        # Streaming
