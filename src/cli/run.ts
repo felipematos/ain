@@ -21,8 +21,9 @@ export function registerRunCommand(program: Command): void {
     .option('--retry <n>', 'Total request attempts on transient errors (default: 3)', parseInt)
     .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
     .option('--system-file <path>', 'Read system prompt from file')
+    .option('--route', 'Use intelligent routing to select model automatically')
     .option('--dry-run', 'Show routing decision without executing')
-    .option('--policy <name>', 'Routing policy name')
+    .option('--policy <name>', 'Routing policy name (implies --route)')
     .option('--stream', 'Stream output token by token')
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .option('-v, --verbose', 'Print provider/model/token info to stderr')
@@ -69,7 +70,7 @@ export function registerRunCommand(program: Command): void {
         let resolvedMaxTokens = opts.maxTokens as number | undefined;
         let fallbackChain: Array<{ provider: string; model: string }> | undefined;
 
-        if (opts.policy && !resolvedProvider && !resolvedModel) {
+        if ((opts.route || opts.policy) && !resolvedProvider && !resolvedModel) {
           const { route } = await import('../routing/router.js');
           const decision = route({ prompt, policyName: opts.policy });
           resolvedProvider = decision.provider;
