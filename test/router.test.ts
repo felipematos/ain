@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Mock config loader
 vi.mock('../src/config/loader.js', () => ({
@@ -21,16 +21,61 @@ vi.mock('../src/config/loader.js', () => ({
   getConfigDir: vi.fn(() => '/tmp/ain-test'),
 }));
 
-// Mock policies (no policy file)
+let mockPoliciesYaml: string | null = null;
+
+// Mock fs: control whether policies.yaml exists and its content
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();
   return {
     ...actual,
     existsSync: vi.fn((path: string) => {
-      if (String(path).includes('policies.yaml')) return false;
+      if (String(path).includes('policies.yaml')) return mockPoliciesYaml !== null;
       return actual.existsSync(path);
     }),
+    readFileSync: vi.fn((path: unknown, ...args: unknown[]) => {
+      if (String(path).includes('policies.yaml') && mockPoliciesYaml !== null) {
+        return mockPoliciesYaml;
+      }
+      return (actual.readFileSync as (...a: unknown[]) => unknown)(path, ...args);
+    }),
   };
+});
+
+describe('route — policy with fallback chain', () => {
+  it('parses fallback chain including slash-containing model names', async () => {
+    mockPoliciesYaml = `
+version: 1
+defaultPolicy: test-policy
+policies:
+  test-policy:
+    tiers:
+      general: { provider: mac-mini, model: google/gemma }
+    fallbackChain:
+      - mac-mini/google/gemma
+      - mac-mini/liquid/lfm2
+`;
+    const { route } = await import('../src/routing/router.js');
+    const decision = route({ prompt: 'Write a summary', policyName: 'test-policy' });
+    expect(decision.fallbackChain).toHaveLength(2);
+    expect(decision.fallbackChain![0]).toEqual({ provider: 'mac-mini', model: 'google/gemma' });
+    expect(decision.fallbackChain![1]).toEqual({ provider: 'mac-mini', model: 'liquid/lfm2' });
+    mockPoliciesYaml = null;
+  });
+
+  it('omits fallbackChain when not configured', async () => {
+    mockPoliciesYaml = `
+version: 1
+defaultPolicy: simple
+policies:
+  simple:
+    tiers:
+      general: { provider: mac-mini, model: google/gemma }
+`;
+    const { route } = await import('../src/routing/router.js');
+    const decision = route({ prompt: 'Write a summary', policyName: 'simple' });
+    expect(decision.fallbackChain).toBeUndefined();
+    mockPoliciesYaml = null;
+  });
 });
 
 describe('route', () => {

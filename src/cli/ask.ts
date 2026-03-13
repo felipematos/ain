@@ -85,6 +85,12 @@ export function registerAskCommand(program: Command): void {
         };
 
         if (opts.stream && !useEnvelope) {
+          if (opts.verbose) {
+            const { resolveProvider, resolveModel } = await import('../config/loader.js');
+            const { name: pName } = resolveProvider(runOpts.provider);
+            const mId = resolveModel(runOpts.model, pName);
+            process.stderr.write(`Provider: ${pName}, Model: ${mId ?? '(default)'}\n`);
+          }
           for await (const token of stream(runOpts)) {
             process.stdout.write(token);
           }

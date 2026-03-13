@@ -45,8 +45,11 @@ function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingD
     throw new Error(`Policy has no tier configuration for "${tier}" or "general"`);
   }
 
-  const fallbackChain = (policy.fallbackChain ?? []).map((providerModel) => {
-    const [provider, model] = providerModel.split('/');
+  const rawFallback = policy.fallbackChain ?? [];
+  const fallbackChain = rawFallback.map((providerModel) => {
+    const slashIdx = providerModel.indexOf('/');
+    const provider = slashIdx >= 0 ? providerModel.slice(0, slashIdx) : providerModel;
+    const model = slashIdx >= 0 ? providerModel.slice(slashIdx + 1) : '';
     return { provider, model };
   });
 
@@ -59,7 +62,7 @@ function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingD
       temperature: tierConfig.temperature,
       maxTokens: tierConfig.maxTokens,
     },
-    fallbackChain,
+    ...(fallbackChain.length > 0 ? { fallbackChain } : {}),
   };
 }
 
