@@ -60,4 +60,11 @@ describe('withRetry', () => {
     ).rejects.toThrow('bad request');
     expect(fn).toHaveBeenCalledTimes(1);
   });
+
+  it('clamps maxAttempts: 0 to 1 attempt (never skips all attempts)', async () => {
+    const fn = vi.fn().mockResolvedValue('ok');
+    const result = await withRetry(fn, { maxAttempts: 0, initialDelayMs: 1, maxDelayMs: 10, backoffFactor: 2 });
+    expect(result).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });

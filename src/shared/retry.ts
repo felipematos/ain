@@ -34,6 +34,8 @@ export async function withRetry<T>(
   options: Partial<RetryOptions> = {},
 ): Promise<T> {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  // Clamp to at least 1 attempt — maxAttempts: 0 would skip the loop entirely
+  opts.maxAttempts = Math.max(1, opts.maxAttempts);
   let lastError: Error = new Error('No attempts made');
   let delay = opts.initialDelayMs;
 
