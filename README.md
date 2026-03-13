@@ -69,6 +69,7 @@ ain run --prompt "..." --skip-think                    # Disable reasoning pream
 
 ```bash
 ain providers add mac-mini --base-url http://localhost:1234/v1 --set-default
+ain providers add openai --base-url https://api.openai.com/v1 --api-key env:OPENAI_API_KEY
 ain providers list
 ain providers show mac-mini
 ain providers remove mac-mini
@@ -197,7 +198,7 @@ classifyTask('Analyze step by step why this fails'); // 'reasoning'
 | Text | (default) | Plain text to stdout |
 | JSON | `--json` | `{ ok, provider, model, output, usage }` pretty-printed |
 | JSONL | `--jsonl` | Same envelope, compact single line (pipe-friendly) |
-| Schema | `--schema file.json` | Validated JSON object |
+| Schema | `--schema file.json` | JSON envelope with validated object in `output` field |
 | Field | `--field key` | Single extracted value (supports dot notation: `--field address.city`) |
 | Stream | `--stream` | Tokens written progressively |
 
