@@ -67,6 +67,7 @@ export function registerRunCommand(program: Command): void {
         let resolvedModel = opts.model as string | undefined;
         let resolvedTemperature = opts.temperature as number | undefined;
         let resolvedMaxTokens = opts.maxTokens as number | undefined;
+        let fallbackChain: Array<{ provider: string; model: string }> | undefined;
 
         if (opts.policy && !resolvedProvider && !resolvedModel) {
           const { route } = await import('../routing/router.js');
@@ -75,6 +76,7 @@ export function registerRunCommand(program: Command): void {
           resolvedModel = decision.model;
           resolvedTemperature ??= decision.params?.temperature;
           resolvedMaxTokens ??= decision.params?.maxTokens;
+          fallbackChain = decision.fallbackChain;
         }
 
         const systemText = opts.systemFile
@@ -93,6 +95,7 @@ export function registerRunCommand(program: Command): void {
           noThink: opts.skipThink,
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,
+          fallbackChain,
         };
 
         if (opts.stream && !useEnvelope) {

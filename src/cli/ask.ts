@@ -54,12 +54,14 @@ export function registerAskCommand(program: Command): void {
         // Resolve provider/model via routing if requested
         let resolvedProvider = opts.provider as string | undefined;
         let resolvedModel = opts.model as string | undefined;
+        let fallbackChain: Array<{ provider: string; model: string }> | undefined;
 
         if ((opts.route || opts.policy) && !resolvedProvider && !resolvedModel) {
           const { route } = await import('../routing/router.js');
           const decision = route({ prompt, policyName: opts.policy });
           resolvedProvider = decision.provider;
           resolvedModel = decision.model;
+          fallbackChain = decision.fallbackChain;
           if (opts.verbose) {
             process.stderr.write(`Routing: tier=${decision.tier}, ${decision.rationale}\n`);
           }
@@ -83,6 +85,7 @@ export function registerAskCommand(program: Command): void {
           jsonMode: useJson,  // only instruct model when json/field requested
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,
+          fallbackChain,
         };
 
         if (opts.stream && !useEnvelope) {

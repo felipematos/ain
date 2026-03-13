@@ -111,6 +111,49 @@ describe('run — schema mode', () => {
   });
 });
 
+describe('run — fallback chain', () => {
+  it('succeeds on first try when no fallback needed', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('Hello!'));
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({
+      prompt: 'Hi',
+      fallbackChain: [{ provider: 'fallback-provider', model: 'fallback-model' }],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.output).toBe('Hello!');
+    expect(mockChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls through to fallback when primary fails', async () => {
+    mockChat
+      .mockRejectedValueOnce(new Error('HTTP 503: unavailable'))
+      .mockResolvedValue(makeChatResponse('Fallback response'));
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({
+      prompt: 'Hi',
+      maxRetries: 1,
+      fallbackChain: [{ provider: 'fallback-provider', model: 'fallback-model' }],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.output).toBe('Fallback response');
+    expect(mockChat).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws last error when all candidates fail', async () => {
+    mockChat.mockRejectedValue(new Error('HTTP 503: always fails'));
+    const { run } = await import('../src/execution/runner.js');
+    await expect(
+      run({
+        prompt: 'Hi',
+        maxRetries: 1,
+        fallbackChain: [{ provider: 'fallback-provider', model: 'fallback-model' }],
+      }),
+    ).rejects.toThrow('HTTP 503: always fails');
+    // maxRetries:1 = maxAttempts:1 (no retry), 2 candidates × 1 attempt each
+    expect(mockChat).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('cleanModelOutput', () => {
   it('strips <think> blocks', async () => {
     const { cleanModelOutput } = await import('../src/execution/runner.js');

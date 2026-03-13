@@ -2,12 +2,24 @@
   "name": "ain-cli",
   "version": "0.8.0",
   "description": "AI Node — scriptable CLI and library for LLM tasks",
+  "keywords": ["ai", "llm", "cli", "openai", "automation", "scripting"],
+  "license": "MIT",
   "type": "module",
   "bin": {
     "ain": "./dist/cli/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
@@ -29,6 +41,5 @@
   },
   "engines": {
     "node": ">=18"
-  },
-  "license": "MIT"
+  }
 }

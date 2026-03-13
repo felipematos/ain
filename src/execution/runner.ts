@@ -15,6 +15,7 @@ export interface RunOptions {
   noThink?: boolean;
   maxRetries?: number;
   timeoutMs?: number;
+  fallbackChain?: Array<{ provider: string; model: string }>;
 }
 
 export async function* stream(options: RunOptions): AsyncGenerator<string> {
@@ -130,6 +131,25 @@ function filterThinkTokens(
 }
 
 export async function run(options: RunOptions): Promise<RunResult> {
+  const candidates: Array<{ provider?: string; model?: string }> = [
+    { provider: options.provider, model: options.model },
+    ...(options.fallbackChain ?? []),
+  ];
+
+  let lastError: Error | undefined;
+
+  for (const candidate of candidates) {
+    try {
+      return await runOnce({ ...options, provider: candidate.provider, model: candidate.model });
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastError ?? new Error('All candidates failed');
+}
+
+async function runOnce(options: RunOptions): Promise<RunResult> {
   const { name: providerName, provider } = resolveProvider(options.provider);
   const modelId = resolveModel(options.model, providerName);
 
