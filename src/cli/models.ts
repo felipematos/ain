@@ -10,6 +10,7 @@ export function registerModelCommands(program: Command): void {
     .description('List available models')
     .option('-p, --provider <name>', 'Filter by provider')
     .option('--live', 'Fetch live from provider API (default: show cached)')
+    .option('--json', 'Output as JSON')
     .action(async (opts) => {
       try {
         const config = loadConfig();
@@ -19,6 +20,23 @@ export function registerModelCommands(program: Command): void {
 
         if (providerNames.length === 0) {
           process.stdout.write('No providers configured.\n');
+          return;
+        }
+
+        if (opts.json) {
+          const out: Record<string, unknown[]> = {};
+          for (const name of providerNames) {
+            const provider = config.providers[name];
+            if (!provider) continue;
+            if (opts.live) {
+              const adapter = createAdapter(provider);
+              const response = await adapter.listModels();
+              out[name] = response.data;
+            } else {
+              out[name] = provider.models ?? [];
+            }
+          }
+          process.stdout.write(JSON.stringify(out, null, 2) + '\n');
           return;
         }
 
