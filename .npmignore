@@ -1,0 +1,7 @@
+test/
+docs/
+.claude/
+*.local.md
+vitest.config.ts
+tsconfig.json
+src/

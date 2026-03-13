@@ -1,0 +1,28 @@
+version: 1
+providers:
+  mac-mini:
+    kind: openai-compatible
+    baseUrl: https://felipes-mac-mini.tail4f12c7.ts.net:8443/v1
+    timeoutMs: 60000
+    models:
+      - id: liquid/lfm2.5-1.2b
+        alias: liquid-fast
+        contextWindow: 4096
+        maxTokens: 2048
+        capabilities: [text]
+        tags: [local, fast, cheap]
+      - id: google/gemma-3n-e4b
+        alias: gemma-general
+        contextWindow: 8192
+        maxTokens: 4096
+        capabilities: [text]
+        tags: [local, general]
+      - id: qwen3.5-4b-mlx
+        alias: qwen-reason
+        contextWindow: 8192
+        maxTokens: 4096
+        capabilities: [text]
+        tags: [local, reasoning, portuguese]
+defaults:
+  provider: mac-mini
+  model: google/gemma-3n-e4b

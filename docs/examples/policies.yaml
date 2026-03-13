@@ -1,0 +1,39 @@
+version: 1
+defaultPolicy: local-first
+
+policies:
+  local-first:
+    description: Route all tasks locally, use fast models for simple tasks
+    localFirst: true
+    tiers:
+      fast:
+        provider: mac-mini
+        model: liquid/lfm2.5-1.2b
+        temperature: 0.1
+        maxTokens: 512
+      general:
+        provider: mac-mini
+        model: google/gemma-3n-e4b
+        temperature: 0.7
+        maxTokens: 2048
+      reasoning:
+        provider: mac-mini
+        model: qwen3.5-4b-mlx
+        temperature: 0.6
+        maxTokens: 4096
+    fallbackChain:
+      - mac-mini/liquid/lfm2.5-1.2b
+
+  balanced:
+    description: Balance local and remote based on task complexity
+    localFirst: false
+    tiers:
+      fast:
+        provider: mac-mini
+        model: liquid/lfm2.5-1.2b
+      general:
+        provider: mac-mini
+        model: google/gemma-3n-e4b
+      reasoning:
+        provider: mac-mini
+        model: qwen3.5-4b-mlx
