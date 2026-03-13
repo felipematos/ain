@@ -197,7 +197,7 @@ classifyTask('Analyze step by step why this fails'); // 'reasoning'
 | JSON | `--json` | `{ ok, provider, model, output, usage }` pretty-printed |
 | JSONL | `--jsonl` | Same envelope, compact single line (pipe-friendly) |
 | Schema | `--schema file.json` | Validated JSON object |
-| Field | `--field key` | Single extracted value |
+| Field | `--field key` | Single extracted value (supports dot notation: `--field address.city`) |
 | Stream | `--stream` | Tokens written progressively |
 
 ## Exit Codes

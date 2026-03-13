@@ -129,8 +129,11 @@ export function registerRunCommand(program: Command): void {
           }
 
           if (opts.field) {
-            const parsed = result.parsedOutput as Record<string, unknown>;
-            const value = parsed?.[opts.field as string];
+            const keys = (opts.field as string).split('.');
+            let value: unknown = result.parsedOutput;
+            for (const key of keys) {
+              value = (value as Record<string, unknown>)?.[key];
+            }
             if (value === undefined) {
               process.stderr.write(`Error: field "${opts.field}" not found in output\n`);
               process.exit(1);
