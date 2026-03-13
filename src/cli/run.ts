@@ -66,7 +66,11 @@ export function registerRunCommand(program: Command): void {
         let schema: object | undefined;
         if (opts.schema) {
           try {
-            schema = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
+            const parsed: unknown = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
+            if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+              throw new Error('Schema must be a JSON object');
+            }
+            schema = parsed;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             throw new Error(`Failed to load schema file "${opts.schema as string}": ${msg}`);
