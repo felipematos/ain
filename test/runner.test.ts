@@ -35,6 +35,21 @@ beforeEach(() => {
   mockChat.mockReset();
 });
 
+describe('run — empty response', () => {
+  it('throws on empty content from provider', async () => {
+    mockChat.mockResolvedValue({
+      id: 'test',
+      object: 'chat.completion',
+      created: 0,
+      model: 'test-model',
+      choices: [{ index: 0, message: { role: 'assistant', content: '' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 5, completion_tokens: 0, total_tokens: 5 },
+    });
+    const { run } = await import('../src/execution/runner.js');
+    await expect(run({ prompt: 'Hi' })).rejects.toThrow('empty response');
+  });
+});
+
 describe('run — text mode', () => {
   it('returns successful result', async () => {
     mockChat.mockResolvedValue(makeChatResponse('Hello!'));
