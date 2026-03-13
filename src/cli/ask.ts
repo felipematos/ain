@@ -22,8 +22,13 @@ export function registerAskCommand(program: Command): void {
     .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
     .option('--system-file <path>', 'Read system prompt from file')
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
-    .option('-j, --json', 'Output JSON envelope')
+    .option('-j, --json', 'Output JSON envelope (pretty-printed)')
+    .option('--jsonl', 'Output compact single-line JSON (JSONL format)')
     .action(async (promptArg: string | undefined, opts) => {
+      // useJson = ask the model to return JSON (affects system prompt)
+      // useEnvelope = wrap output in JSON envelope (affects rendering only)
+      const useJson = opts.json || !!opts.field;
+      const useEnvelope = useJson || opts.jsonl;
       try {
         let prompt = promptArg;
 
@@ -64,7 +69,6 @@ export function registerAskCommand(program: Command): void {
           process.stderr.write(`Using provider: ${resolvedProvider ?? 'default'}, model: ${resolvedModel ?? 'default'}\n`);
         }
 
-        const useJson = opts.json || !!opts.field;
         const systemText = opts.systemFile
           ? readFileSync(opts.systemFile as string, 'utf-8').trim()
           : opts.system as string | undefined;
@@ -76,12 +80,12 @@ export function registerAskCommand(program: Command): void {
           temperature: opts.temperature,
           maxTokens: opts.maxTokens,
           noThink: opts.skipThink,
-          jsonMode: useJson,
+          jsonMode: useJson,  // only instruct model when json/field requested
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,
         };
 
-        if (opts.stream && !useJson) {
+        if (opts.stream && !useEnvelope) {
           for await (const token of stream(runOpts)) {
             process.stdout.write(token);
           }
@@ -105,11 +109,11 @@ export function registerAskCommand(program: Command): void {
             }
             process.stdout.write(String(value) + '\n');
           } else {
-            renderText(result, { json: useJson });
+            renderText(result, { json: opts.json || !!opts.field, jsonl: opts.jsonl });
           }
         }
       } catch (err) {
-        renderError(err instanceof Error ? err : String(err));
+        renderError(err instanceof Error ? err : String(err), useEnvelope);
         process.exit(1);
       }
     });

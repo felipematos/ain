@@ -12,7 +12,8 @@ export function registerRunCommand(program: Command): void {
     .option('-p, --provider <name>', 'Provider to use')
     .option('-m, --model <id>', 'Model to use (accepts alias)')
     .option('-s, --system <text>', 'System prompt')
-    .option('--json', 'Output JSON envelope')
+    .option('--json', 'Output JSON envelope (pretty-printed)')
+    .option('--jsonl', 'Output compact single-line JSON (JSONL format)')
     .option('--schema <path>', 'Path to JSON schema file for structured output')
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
     .option('--temperature <n>', 'Temperature (0-2)', parseFloat)
@@ -24,8 +25,12 @@ export function registerRunCommand(program: Command): void {
     .option('--policy <name>', 'Routing policy name')
     .option('--stream', 'Stream output token by token')
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('-v, --verbose', 'Print provider/model/token info to stderr')
     .action(async (opts) => {
+      // useJson = ask the model to return JSON (affects system prompt)
+      // useEnvelope = wrap output in JSON envelope (affects rendering only)
       const useJson = opts.json || !!opts.schema || !!opts.field;
+      const useEnvelope = useJson || opts.jsonl;
       try {
         let prompt = opts.prompt as string | undefined;
 
@@ -90,13 +95,22 @@ export function registerRunCommand(program: Command): void {
           timeoutMs: opts.timeout as number | undefined,
         };
 
-        if (opts.stream && !useJson) {
+        if (opts.stream && !useEnvelope) {
           for await (const token of stream(runOpts)) {
             process.stdout.write(token);
           }
           process.stdout.write('\n');
         } else {
           const result = await run(runOpts);
+
+          if (opts.verbose) {
+            process.stderr.write(`Provider: ${result.provider}, Model: ${result.model}\n`);
+            if (result.usage) {
+              process.stderr.write(
+                `Tokens: ${result.usage.total_tokens} (in: ${result.usage.prompt_tokens}, out: ${result.usage.completion_tokens})\n`,
+              );
+            }
+          }
 
           if (opts.field) {
             const parsed = result.parsedOutput as Record<string, unknown>;
@@ -107,11 +121,11 @@ export function registerRunCommand(program: Command): void {
             }
             process.stdout.write(String(value) + '\n');
           } else {
-            renderText(result, { json: useJson });
+            renderText(result, { json: opts.json || !!opts.schema || !!opts.field, jsonl: opts.jsonl });
           }
         }
       } catch (err) {
-        renderError(err instanceof Error ? err : String(err), useJson);
+        renderError(err instanceof Error ? err : String(err), useEnvelope);
         process.exit(1);
       }
     });
