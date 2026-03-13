@@ -44,10 +44,17 @@ export function registerConfigCommands(program: Command): void {
     .option('-p, --provider <name>', 'Default provider')
     .option('-m, --model <id>', 'Default model')
     .action((opts) => {
+      if (!opts.provider && !opts.model) {
+        process.stderr.write('Error: Specify --provider and/or --model.\n');
+        process.exit(1);
+      }
       const cfg = loadConfig();
       if (opts.provider) cfg.defaults = { ...cfg.defaults, provider: opts.provider as string };
       if (opts.model) cfg.defaults = { ...cfg.defaults, model: opts.model as string };
       saveConfig(cfg);
-      process.stdout.write('Defaults updated.\n');
+      const parts: string[] = [];
+      if (opts.provider) parts.push(`provider=${opts.provider as string}`);
+      if (opts.model) parts.push(`model=${opts.model as string}`);
+      process.stdout.write(`Defaults updated: ${parts.join(', ')}\n`);
     });
 }

@@ -62,15 +62,17 @@ export function registerProviderCommands(program: Command): void {
 
       try {
         const provider = ProviderConfigSchema.parse(providerData);
+        const isUpdate = !!loadConfig().providers[name];
         addProvider(name, provider);
 
+        const verb = isUpdate ? 'updated' : 'added';
         if (opts.setDefault) {
           const config = loadConfig();
           config.defaults = { ...config.defaults, provider: name };
           saveConfig(config);
-          process.stdout.write(`Provider "${name}" added and set as default.\n`);
+          process.stdout.write(`Provider "${name}" ${verb} and set as default.\n`);
         } else {
-          process.stdout.write(`Provider "${name}" added.\n`);
+          process.stdout.write(`Provider "${name}" ${verb}.\n`);
         }
       } catch (err) {
         process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);

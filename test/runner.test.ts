@@ -60,6 +60,19 @@ describe('run — text mode', () => {
     expect(req.messages[0]!.role).toBe('system');
     expect(req.messages[0]!.content).toBe('You are a helpful assistant.');
   });
+
+  it('orders messages: noThink → system → schema → user', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('{"x":1}'));
+    const { run } = await import('../src/execution/runner.js');
+    const schema = { type: 'object', required: ['x'], properties: { x: { type: 'number' } } };
+    await run({ prompt: 'Go', system: 'Be concise.', noThink: true, schema });
+    const req = mockChat.mock.calls[0]![0] as { messages: Array<{ role: string; content: string }> };
+    expect(req.messages[0]!.content).toBe('/no_think');
+    expect(req.messages[1]!.content).toBe('Be concise.');
+    expect(req.messages[2]!.content).toContain('JSON');   // schema instruction
+    expect(req.messages[3]!.role).toBe('user');
+    expect(req.messages[3]!.content).toBe('Go');
+  });
 });
 
 describe('run — JSON mode', () => {

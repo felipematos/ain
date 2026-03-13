@@ -94,6 +94,30 @@ describe('runDoctorChecks', () => {
     expect(endpointResult?.detail).toBe('Connection refused');
   });
 
+  it('reports auth failure when env var not set', async () => {
+    configExistsMock.mockReturnValue(true);
+    loadConfigMock.mockReturnValue({
+      version: 1,
+      providers: {
+        'secret-provider': {
+          kind: 'openai-compatible',
+          baseUrl: 'http://localhost:1234/v1',
+          apiKey: 'env:MISSING_API_KEY_XYZ',
+          timeoutMs: 60000,
+          models: [],
+        },
+      },
+      defaults: {},
+    });
+    delete process.env['MISSING_API_KEY_XYZ'];
+
+    const { runDoctorChecks } = await import('../src/doctor/checks.js');
+    const results = await runDoctorChecks();
+    const authResult = results.find((r) => r.name === 'provider:secret-provider:auth');
+    expect(authResult?.ok).toBe(false);
+    expect(authResult?.detail).toContain('MISSING_API_KEY_XYZ');
+  });
+
   it('filters by provider name', async () => {
     configExistsMock.mockReturnValue(true);
     loadConfigMock.mockReturnValue({
