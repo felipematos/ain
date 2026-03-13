@@ -68,8 +68,9 @@ export async function run(options: RunOptions): Promise<RunResult> {
 
   let parsedOutput: unknown;
   if (options.jsonMode || options.schema) {
+    const jsonText = stripMarkdownFences(rawOutput);
     try {
-      parsedOutput = JSON.parse(rawOutput);
+      parsedOutput = JSON.parse(jsonText);
     } catch {
       throw new Error(`Provider returned invalid JSON: ${rawOutput}`);
     }
@@ -90,6 +91,13 @@ export async function run(options: RunOptions): Promise<RunResult> {
     parsedOutput,
     usage: response.usage,
   };
+}
+
+export function stripMarkdownFences(text: string): string {
+  // Strip ```json ... ``` or ``` ... ``` wrappers that some models add
+  const fenceMatch = text.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/);
+  if (fenceMatch?.[1]) return fenceMatch[1].trim();
+  return text.trim();
 }
 
 function validateSchema(data: unknown, schema: object): { valid: boolean; errors: string[] } {
