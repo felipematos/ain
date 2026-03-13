@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["name", "capital", "population_millions"],
+  "properties": {
+    "name": { "type": "string" },
+    "capital": { "type": "string" },
+    "population_millions": { "type": "number" }
+  }
+}

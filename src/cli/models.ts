@@ -1,0 +1,86 @@
+import type { Command } from 'commander';
+import { loadConfig, resolveProvider, saveConfig } from '../config/loader.js';
+import { createAdapter } from '../providers/openai-compatible.js';
+
+export function registerModelCommands(program: Command): void {
+  const models = program.command('models').description('Manage models');
+
+  models
+    .command('list')
+    .description('List available models')
+    .option('-p, --provider <name>', 'Filter by provider')
+    .option('--live', 'Fetch live from provider API (default: show cached)')
+    .action(async (opts) => {
+      try {
+        const config = loadConfig();
+        const providerNames = opts.provider
+          ? [opts.provider as string]
+          : Object.keys(config.providers);
+
+        if (providerNames.length === 0) {
+          process.stdout.write('No providers configured.\n');
+          return;
+        }
+
+        for (const name of providerNames) {
+          const provider = config.providers[name];
+          if (!provider) {
+            process.stderr.write(`Provider "${name}" not found.\n`);
+            continue;
+          }
+
+          if (opts.live) {
+            const adapter = createAdapter(provider);
+            const response = await adapter.listModels();
+            process.stdout.write(`\nProvider: ${name} (${provider.baseUrl})\n`);
+            for (const model of response.data) {
+              process.stdout.write(`  ${model.id}\n`);
+            }
+          } else {
+            const cached = provider.models ?? [];
+            if (cached.length === 0) {
+              process.stdout.write(`\nProvider: ${name} — no cached models. Run: ain models refresh ${name}\n`);
+            } else {
+              process.stdout.write(`\nProvider: ${name}\n`);
+              for (const model of cached) {
+                const alias = model.alias ? ` (${model.alias})` : '';
+                const tags = model.tags?.join(', ');
+                process.stdout.write(`  ${model.id}${alias}${tags ? `  [${tags}]` : ''}\n`);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(1);
+      }
+    });
+
+  models
+    .command('refresh [provider]')
+    .description('Fetch live model list and cache it')
+    .action(async (providerName?: string) => {
+      try {
+        const config = loadConfig();
+        const names = providerName ? [providerName] : Object.keys(config.providers);
+
+        for (const name of names) {
+          const provider = config.providers[name];
+          if (!provider) {
+            process.stderr.write(`Provider "${name}" not found.\n`);
+            continue;
+          }
+
+          const adapter = createAdapter(provider);
+          const response = await adapter.listModels();
+          provider.models = response.data.map((m) => ({ id: m.id }));
+          process.stdout.write(`Refreshed ${response.data.length} models for "${name}".\n`);
+        }
+
+        saveConfig(config);
+      } catch (err) {
+        process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(1);
+      }
+    });
+}
