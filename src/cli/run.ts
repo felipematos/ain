@@ -18,6 +18,8 @@ export function registerRunCommand(program: Command): void {
     .option('--temperature <n>', 'Temperature (0-2)', parseFloat)
     .option('--max-tokens <n>', 'Max tokens', parseInt)
     .option('--retry <n>', 'Max retry attempts on transient errors (default: 3)', parseInt)
+    .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
+    .option('--system-file <path>', 'Read system prompt from file')
     .option('--dry-run', 'Show routing decision without executing')
     .option('--policy <name>', 'Routing policy name')
     .option('--stream', 'Stream output token by token')
@@ -70,17 +72,22 @@ export function registerRunCommand(program: Command): void {
           resolvedMaxTokens ??= decision.params?.maxTokens;
         }
 
+        const systemText = opts.systemFile
+          ? readFileSync(opts.systemFile as string, 'utf-8').trim()
+          : opts.system as string | undefined;
+
         const runOpts = {
           prompt,
           provider: resolvedProvider,
           model: resolvedModel,
-          system: opts.system,
+          system: systemText,
           temperature: resolvedTemperature,
           maxTokens: resolvedMaxTokens,
           jsonMode: useJson,
           schema,
           noThink: opts.skipThink,
           maxRetries: opts.retry as number | undefined,
+          timeoutMs: opts.timeout as number | undefined,
         };
 
         if (opts.stream && !useJson) {

@@ -14,6 +14,7 @@ export interface RunOptions {
   schema?: object;
   noThink?: boolean;
   maxRetries?: number;
+  timeoutMs?: number;
 }
 
 export async function* stream(options: RunOptions): AsyncGenerator<string> {
@@ -136,7 +137,10 @@ export async function run(options: RunOptions): Promise<RunResult> {
     throw new Error('No model specified and no default model configured. Use --model or set defaults.model in config.');
   }
 
-  const adapter = createAdapter(provider);
+  const effectiveProvider = options.timeoutMs
+    ? { ...provider, timeoutMs: options.timeoutMs }
+    : provider;
+  const adapter = createAdapter(effectiveProvider);
   const messages = buildMessages(options);
   const request = buildRequest(modelId, messages, options);
 
@@ -188,26 +192,64 @@ export function cleanModelOutput(text: string): string {
   return cleaned.trim();
 }
 
-function validateSchema(data: unknown, schema: object): { valid: boolean; errors: string[] } {
-  // Basic JSON schema validation (type checking only for common cases)
-  // For production, would use ajv or similar
+function validateSchema(
+  data: unknown,
+  schema: object,
+  path = '',
+): { valid: boolean; errors: string[] } {
   const s = schema as Record<string, unknown>;
   const errors: string[] = [];
+  const label = path || 'root';
 
-  if (s['type'] === 'object' && typeof data !== 'object') {
-    errors.push(`Expected object, got ${typeof data}`);
-  } else if (s['type'] === 'array' && !Array.isArray(data)) {
-    errors.push(`Expected array, got ${typeof data}`);
-  } else if (s['type'] === 'string' && typeof data !== 'string') {
-    errors.push(`Expected string, got ${typeof data}`);
+  // Type check
+  const expectedType = s['type'] as string | undefined;
+  if (expectedType) {
+    const actualType = Array.isArray(data) ? 'array' : typeof data;
+    if (expectedType === 'integer') {
+      if (typeof data !== 'number' || !Number.isInteger(data)) {
+        errors.push(`${label}: expected integer, got ${actualType}`);
+      }
+    } else if (expectedType !== actualType) {
+      errors.push(`${label}: expected ${expectedType}, got ${actualType}`);
+      return { valid: false, errors }; // can't validate further if type is wrong
+    }
   }
 
-  if (s['required'] && Array.isArray(s['required']) && typeof data === 'object' && data !== null) {
+  // Enum check
+  if (s['enum'] && Array.isArray(s['enum'])) {
+    if (!(s['enum'] as unknown[]).includes(data)) {
+      errors.push(`${label}: value ${JSON.stringify(data)} not in enum [${(s['enum'] as unknown[]).join(', ')}]`);
+    }
+  }
+
+  // Object: required + properties
+  if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
     const obj = data as Record<string, unknown>;
-    for (const field of s['required'] as string[]) {
-      if (!(field in obj)) {
-        errors.push(`Missing required field: ${field}`);
+
+    if (s['required'] && Array.isArray(s['required'])) {
+      for (const field of s['required'] as string[]) {
+        if (!(field in obj)) {
+          errors.push(`${label}: missing required field "${field}"`);
+        }
       }
+    }
+
+    if (s['properties'] && typeof s['properties'] === 'object') {
+      const props = s['properties'] as Record<string, object>;
+      for (const [key, propSchema] of Object.entries(props)) {
+        if (key in obj) {
+          const nested = validateSchema(obj[key], propSchema, path ? `${path}.${key}` : key);
+          errors.push(...nested.errors);
+        }
+      }
+    }
+  }
+
+  // Array: items
+  if (Array.isArray(data) && s['items'] && typeof s['items'] === 'object') {
+    for (let i = 0; i < data.length; i++) {
+      const nested = validateSchema(data[i], s['items'] as object, `${label}[${i}]`);
+      errors.push(...nested.errors);
     }
   }
 

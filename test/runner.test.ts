@@ -101,13 +101,13 @@ describe('run — schema mode', () => {
   it('throws on schema validation failure — missing required field', async () => {
     mockChat.mockResolvedValue(makeChatResponse('{"name":"test"}'));
     const { run } = await import('../src/execution/runner.js');
-    await expect(run({ prompt: 'Give me data', schema })).rejects.toThrow('Missing required field: value');
+    await expect(run({ prompt: 'Give me data', schema })).rejects.toThrow('missing required field');
   });
 
   it('throws on schema validation failure — wrong type', async () => {
     mockChat.mockResolvedValue(makeChatResponse('"just a string"'));
     const { run } = await import('../src/execution/runner.js');
-    await expect(run({ prompt: 'Give me data', schema })).rejects.toThrow('Expected object');
+    await expect(run({ prompt: 'Give me data', schema })).rejects.toThrow('expected object');
   });
 });
 

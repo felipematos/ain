@@ -19,6 +19,8 @@ export function registerAskCommand(program: Command): void {
     .option('--stream', 'Stream output token by token')
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
     .option('--retry <n>', 'Max retry attempts on transient errors (default: 3)', parseInt)
+    .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt)
+    .option('--system-file <path>', 'Read system prompt from file')
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
     .option('-j, --json', 'Output JSON envelope')
     .action(async (promptArg: string | undefined, opts) => {
@@ -63,16 +65,20 @@ export function registerAskCommand(program: Command): void {
         }
 
         const useJson = opts.json || !!opts.field;
+        const systemText = opts.systemFile
+          ? readFileSync(opts.systemFile as string, 'utf-8').trim()
+          : opts.system as string | undefined;
         const runOpts = {
           prompt,
           provider: resolvedProvider,
           model: resolvedModel,
-          system: opts.system,
+          system: systemText,
           temperature: opts.temperature,
           maxTokens: opts.maxTokens,
           noThink: opts.skipThink,
           jsonMode: useJson,
           maxRetries: opts.retry as number | undefined,
+          timeoutMs: opts.timeout as number | undefined,
         };
 
         if (opts.stream && !useJson) {
