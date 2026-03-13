@@ -67,9 +67,59 @@ export class OpenAICompatibleAdapter {
   async chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
     const response = await this.fetch('/chat/completions', {
       method: 'POST',
-      body: JSON.stringify(request),
+      body: JSON.stringify({ ...request, stream: false }),
     });
     return response as ChatCompletionResponse;
+  }
+
+  async *chatStream(request: ChatCompletionRequest): AsyncGenerator<string> {
+    const url = `${this.baseUrl}/chat/completions`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const response = await globalThis.fetch(url, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ ...request, stream: true }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+      }
+
+      if (!response.body) throw new Error('No response body for streaming');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (!trimmed.startsWith('data: ')) continue;
+
+          try {
+            const chunk = JSON.parse(trimmed.slice(6));
+            const delta = chunk?.choices?.[0]?.delta?.content;
+            if (delta) yield delta;
+          } catch {
+            // skip malformed SSE chunks
+          }
+        }
+      }
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async healthCheck(): Promise<{ ok: boolean; error?: string; latencyMs?: number }> {

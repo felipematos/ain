@@ -11,6 +11,39 @@ export interface RunOptions {
   maxTokens?: number;
   jsonMode?: boolean;
   schema?: object;
+  noThink?: boolean;
+}
+
+export async function* stream(options: RunOptions): AsyncGenerator<string> {
+  const { name: providerName, provider } = resolveProvider(options.provider);
+  const modelId = resolveModel(options.model, providerName);
+  if (!modelId) throw new Error('No model specified and no default model configured.');
+
+  const adapter = createAdapter(provider);
+  const messages: ChatMessage[] = buildMessages(options);
+  const request = buildRequest(modelId, messages, options);
+
+  let buffer = '';
+  let inThinkBlock = false;
+
+  for await (const token of adapter.chatStream(request)) {
+    // Buffer to handle multi-token patterns like <think>, <|im_end|>
+    buffer += token;
+    const result = filterThinkTokens(buffer, inThinkBlock);
+    buffer = result.remaining;
+    inThinkBlock = result.inThinkBlock;
+    if (result.output) {
+      // Strip end-of-sequence tokens from intermediate output too
+      const cleaned = result.output.replace(/<\|im_end\|>/g, '').replace(/<\|end\|>/g, '').replace(/<\/s>/g, '');
+      if (cleaned) yield cleaned;
+    }
+  }
+
+  // Flush any remaining buffer (strip end tokens)
+  if (buffer) {
+    const flushed = cleanModelOutput(buffer);
+    if (flushed) yield flushed;
+  }
 }
 
 export interface RunResult {
@@ -27,21 +60,14 @@ export interface RunResult {
   error?: string;
 }
 
-export async function run(options: RunOptions): Promise<RunResult> {
-  const { name: providerName, provider } = resolveProvider(options.provider);
-  const modelId = resolveModel(options.model, providerName);
-
-  if (!modelId) {
-    throw new Error('No model specified and no default model configured. Use --model or set defaults.model in config.');
-  }
-
-  const adapter = createAdapter(provider);
+function buildMessages(options: RunOptions): ChatMessage[] {
   const messages: ChatMessage[] = [];
-
+  if (options.noThink) {
+    messages.push({ role: 'system', content: '/no_think' });
+  }
   if (options.system) {
     messages.push({ role: 'system', content: options.system });
   }
-
   if (options.schema) {
     messages.push({
       role: 'system',
@@ -53,15 +79,64 @@ export async function run(options: RunOptions): Promise<RunResult> {
       content: 'You must respond with valid JSON only. Return only the JSON object, no markdown, no other text.',
     });
   }
-
   messages.push({ role: 'user', content: options.prompt });
+  return messages;
+}
 
-  const request: Parameters<typeof adapter.chat>[0] = {
+function buildRequest(modelId: string, messages: ChatMessage[], options: RunOptions) {
+  return {
     model: modelId,
     messages,
     ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
     ...(options.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
   };
+}
+
+function filterThinkTokens(
+  buffer: string,
+  inThinkBlock: boolean,
+): { output: string; remaining: string; inThinkBlock: boolean } {
+  let output = '';
+  let remaining = buffer;
+  let inside = inThinkBlock;
+
+  while (remaining.length > 0) {
+    if (inside) {
+      const endIdx = remaining.indexOf('</think>');
+      if (endIdx === -1) {
+        // Still inside think block, consume everything
+        remaining = '';
+        break;
+      }
+      remaining = remaining.slice(endIdx + 8);
+      inside = false;
+    } else {
+      const startIdx = remaining.indexOf('<think>');
+      if (startIdx === -1) {
+        output += remaining;
+        remaining = '';
+        break;
+      }
+      output += remaining.slice(0, startIdx);
+      remaining = remaining.slice(startIdx + 7);
+      inside = true;
+    }
+  }
+
+  return { output, remaining: inside ? remaining : '', inThinkBlock: inside };
+}
+
+export async function run(options: RunOptions): Promise<RunResult> {
+  const { name: providerName, provider } = resolveProvider(options.provider);
+  const modelId = resolveModel(options.model, providerName);
+
+  if (!modelId) {
+    throw new Error('No model specified and no default model configured. Use --model or set defaults.model in config.');
+  }
+
+  const adapter = createAdapter(provider);
+  const messages = buildMessages(options);
+  const request = buildRequest(modelId, messages, options);
 
   const response = await adapter.chat(request);
   const rawOutput = cleanModelOutput(response.choices[0]?.message?.content ?? '');

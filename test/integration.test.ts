@@ -49,4 +49,43 @@ describe.skipIf(SKIP)('Integration: OpenAI-compatible adapter', () => {
     expect(health.ok).toBe(true);
     expect(health.latencyMs).toBeDefined();
   });
+
+  it('streams tokens from real server', async () => {
+    const { OpenAICompatibleAdapter } = await import('../src/providers/openai-compatible.js');
+    const adapter = new OpenAICompatibleAdapter({
+      kind: 'openai-compatible',
+      baseUrl: BASE_URL,
+      timeoutMs: 60000,
+      models: [],
+    });
+    const chunks: string[] = [];
+    for await (const token of adapter.chatStream({
+      model: 'liquid/lfm2.5-1.2b',
+      messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }],
+      max_tokens: 10,
+    })) {
+      chunks.push(token);
+    }
+    expect(chunks.length).toBeGreaterThan(0);
+    expect(chunks.join('')).toBeTruthy();
+  });
+
+  it('returns schema-shaped JSON via run()', async () => {
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({
+      prompt: 'Give me info about France',
+      provider: 'mac-mini',
+      model: 'liquid/lfm2.5-1.2b',
+      schema: {
+        type: 'object',
+        required: ['country', 'capital'],
+        properties: {
+          country: { type: 'string' },
+          capital: { type: 'string' },
+        },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect((result.parsedOutput as Record<string, unknown>)['capital']).toBeTruthy();
+  });
 });

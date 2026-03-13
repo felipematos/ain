@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { run } from '../execution/runner.js';
+import { run, stream } from '../execution/runner.js';
 import { renderText, renderError } from '../output/renderer.js';
 
 export function registerAskCommand(program: Command): void {
@@ -16,6 +16,9 @@ export function registerAskCommand(program: Command): void {
     .option('-v, --verbose', 'Show provider/model info on stderr')
     .option('--route', 'Use intelligent routing to select model automatically')
     .option('--policy <name>', 'Routing policy name (implies --route)')
+    .option('--stream', 'Stream output token by token')
+    .option('--no-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models)')
+    .option('-j, --json', 'Output JSON envelope')
     .action(async (promptArg: string | undefined, opts) => {
       try {
         let prompt = promptArg;
@@ -57,23 +60,34 @@ export function registerAskCommand(program: Command): void {
           process.stderr.write(`Using provider: ${resolvedProvider ?? 'default'}, model: ${resolvedModel ?? 'default'}\n`);
         }
 
-        const result = await run({
+        const runOpts = {
           prompt,
           provider: resolvedProvider,
           model: resolvedModel,
           system: opts.system,
           temperature: opts.temperature,
           maxTokens: opts.maxTokens,
-        });
+          noThink: opts.noThink,
+        };
 
-        if (opts.verbose) {
-          process.stderr.write(`Provider: ${result.provider}, Model: ${result.model}\n`);
-          if (result.usage) {
-            process.stderr.write(`Tokens: ${result.usage.total_tokens} (in: ${result.usage.prompt_tokens}, out: ${result.usage.completion_tokens})\n`);
+        if (opts.stream && !opts.json) {
+          // Streaming mode: write tokens directly to stdout
+          for await (const token of stream(runOpts)) {
+            process.stdout.write(token);
           }
-        }
+          process.stdout.write('\n');
+        } else {
+          const result = await run(runOpts);
 
-        renderText(result);
+          if (opts.verbose) {
+            process.stderr.write(`Provider: ${result.provider}, Model: ${result.model}\n`);
+            if (result.usage) {
+              process.stderr.write(`Tokens: ${result.usage.total_tokens} (in: ${result.usage.prompt_tokens}, out: ${result.usage.completion_tokens})\n`);
+            }
+          }
+
+          renderText(result, { json: opts.json });
+        }
       } catch (err) {
         renderError(err instanceof Error ? err : String(err));
         process.exit(1);
