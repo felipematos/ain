@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AIN (AI Node) is a standalone CLI and library for running LLM tasks with predictable, scriptable behavior. It is provider-agnostic and designed for terminal use, shell scripts, CI pipelines, and workflow automation.
 
-**Current status:** v0.8.0 — fully implemented, all CLI commands working, 91 unit+integration tests passing.
+**Current status:** v0.8.0 — fully implemented, all CLI commands working, 117 unit+integration tests passing.
 
 ## Architecture
 
@@ -17,7 +17,7 @@ Six-layer design separating concerns cleanly:
 3. **Provider Adapters** — normalize communication (OpenAI-compatible first)
 4. **Execution Engine** — build request, call provider, normalize response
 5. **Output Renderer** — text, JSON envelope, or schema-validated output
-6. **Routing Engine** — model selection by policy (future phase)
+6. **Routing Engine** — model selection by policy (implemented: classifier, policy files, heuristic fallback)
 
 ## Module Structure
 
@@ -37,7 +37,7 @@ src/
 ## CLI Commands
 
 - `ain ask "<prompt>"` — human-friendly prompt execution (`--stream`, `--json`, `--jsonl`, `--route`, `--field`)
-- `ain run --prompt "..."` — machine-oriented execution (`--json`, `--jsonl`, `--schema`, `--dry-run`, `--policy`)
+- `ain run --prompt "..."` — machine-oriented execution (`--json`, `--jsonl`, `--schema`, `--dry-run`, `--policy`, `--route`)
 - `ain providers add|list|remove|show` — provider management
 - `ain models list [--provider]` — model catalog
 - `ain doctor` — health checks
