@@ -80,5 +80,9 @@ export function registerConfigCommands(program: Command): void {
       if (opts.temperature !== undefined) parts.push(`temperature=${opts.temperature as number}`);
       if (opts.maxTokens !== undefined) parts.push(`maxTokens=${opts.maxTokens as number}`);
       process.stdout.write(`Defaults updated: ${parts.join(', ')}\n`);
+      const projectOverlayPath = join(process.cwd(), PROJECT_CONFIG_FILENAME);
+      if (existsSync(projectOverlayPath)) {
+        process.stderr.write(`Note: a project overlay (${projectOverlayPath}) is active and may override these defaults.\n`);
+      }
     });
 }
