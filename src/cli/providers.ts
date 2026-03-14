@@ -11,6 +11,7 @@ import {
 } from '../config/loader.js';
 import type { ProviderConfig } from '../config/types.js';
 import { ProviderConfigSchema } from '../config/types.js';
+import { PROVIDER_TEMPLATES, getTemplate } from './templates.js';
 
 export function registerProviderCommands(program: Command): void {
   const providers = program.command('providers').alias('p').description('Manage providers');
@@ -59,19 +60,73 @@ export function registerProviderCommands(program: Command): void {
     });
 
   providers
-    .command('add <name>')
+    .command('templates')
+    .description('List available provider templates')
+    .option('--json', 'Output as JSON')
+    .action((opts) => {
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(PROVIDER_TEMPLATES, null, 2) + '\n');
+        return;
+      }
+      const cloud = PROVIDER_TEMPLATES.filter((t) => t.category === 'cloud');
+      const local = PROVIDER_TEMPLATES.filter((t) => t.category === 'local');
+      process.stdout.write('\nCloud providers:\n');
+      for (const t of cloud) {
+        process.stdout.write(`  ${t.id.padEnd(14)} ${t.name.padEnd(28)} ${t.description}\n`);
+      }
+      process.stdout.write('\nLocal providers:\n');
+      for (const t of local) {
+        process.stdout.write(`  ${t.id.padEnd(14)} ${t.name.padEnd(28)} ${t.description}\n`);
+      }
+      process.stdout.write(`\nUse: ain providers add --template <id> [--api-key <key>] [--set-default]\n\n`);
+    });
+
+  providers
+    .command('add [name]')
     .description('Add a new OpenAI-compatible provider')
-    .requiredOption('--base-url <url>', 'Base URL (e.g. http://localhost:1234/v1)')
+    .option('--template <id>', 'Use a provider template (see: ain providers templates)')
+    .option('--base-url <url>', 'Base URL (e.g. http://localhost:1234/v1)')
     .option('--api-key <key>', 'API key or env:VAR_NAME')
     .option('--timeout <ms>', 'Request timeout in ms', parseInt)
     .option('--set-default', 'Set as default provider')
-    .action((name: string, opts) => {
+    .action((nameArg: string | undefined, opts) => {
+      let name = nameArg;
+      let baseUrl = opts.baseUrl as string | undefined;
+      let apiKey = opts.apiKey as string | undefined;
+      let templateModels: Array<{ id: string; alias?: string; tags?: string[] }> = [];
+
+      // Template mode
+      if (opts.template) {
+        const template = getTemplate(opts.template as string);
+        if (!template) {
+          const available = PROVIDER_TEMPLATES.map((t) => t.id).join(', ');
+          process.stderr.write(`Error: Unknown template "${opts.template}". Available: ${available}\n`);
+          process.exit(1);
+        }
+        name = name ?? template.id;
+        baseUrl = baseUrl ?? template.baseUrl;
+        if (!apiKey && template.requiresApiKey) {
+          apiKey = `env:${template.apiKeyEnvVar}`;
+        }
+        templateModels = template.defaultModels ?? [];
+      }
+
+      if (!name) {
+        process.stderr.write('Error: Provider name is required. Usage: ain providers add <name> --base-url <url>\n');
+        process.stderr.write('  Or use a template: ain providers add --template openai\n');
+        process.exit(1);
+      }
+      if (!baseUrl) {
+        process.stderr.write('Error: --base-url is required (unless using --template).\n');
+        process.exit(1);
+      }
+
       const providerData = {
         kind: 'openai-compatible' as const,
-        baseUrl: opts.baseUrl as string,
-        ...(opts.apiKey ? { apiKey: opts.apiKey as string } : {}),
+        baseUrl,
+        ...(apiKey ? { apiKey } : {}),
         ...(opts.timeout ? { timeoutMs: opts.timeout as number } : {}),
-        models: [],
+        models: templateModels,
       };
 
       try {

@@ -100,8 +100,8 @@ describe('preprocessArgs', () => {
       expect(result).toEqual([N, S, 'ask', 'Hello', '--skip-think']);
     });
 
-    it('expands --te to --temperature', () => {
-      const result = preprocessArgs([N, S, 'ask', 'Hello', '--te', '0.5']);
+    it('expands --tempe to --temperature (--temp ambiguous with --template)', () => {
+      const result = preprocessArgs([N, S, 'ask', 'Hello', '--tempe', '0.5']);
       expect(result).toEqual([N, S, 'ask', 'Hello', '--temperature', '0.5']);
     });
 
@@ -137,7 +137,7 @@ describe('preprocessArgs', () => {
     });
 
     it('handles --opt=value format', () => {
-      const result = preprocessArgs([N, S, 'Hello', '--te=0.5']);
+      const result = preprocessArgs([N, S, 'Hello', '--tempe=0.5']);
       expect(result).toEqual([N, S, 'ask', 'Hello', '--temperature=0.5']);
     });
   });

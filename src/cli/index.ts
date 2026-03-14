@@ -11,6 +11,7 @@ import { registerRunCommand } from './run.js';
 import { registerDoctorCommand } from './doctor.js';
 import { registerRoutingCommands } from './routing.js';
 import { preprocessArgs } from './preprocess.js';
+import { shouldRunWizard, runWizard } from './wizard.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,7 +40,21 @@ registerConfigCommands(program);
 registerDoctorCommand(program);
 registerRoutingCommands(program);
 
-program.parseAsync(preprocessArgs(process.argv)).catch((err) => {
+async function main() {
+  const argv = preprocessArgs(process.argv);
+  const command = argv[2];
+
+  // Trigger onboarding wizard for prompt commands when no providers configured
+  if (command === 'ask' || command === 'run') {
+    if (shouldRunWizard()) {
+      await runWizard();
+    }
+  }
+
+  await program.parseAsync(argv);
+}
+
+main().catch((err) => {
   process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
   process.exit(1);
 });

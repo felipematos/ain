@@ -33,7 +33,7 @@ const ALL_LONG_OPTIONS = [
   '--timeout', '--system-file', '--field', '--json', '--jsonl',
   '--schema', '--prompt',
   // Provider options
-  '--base-url', '--api-key', '--set-default',
+  '--base-url', '--api-key', '--set-default', '--template',
   // Model options
   '--live', '--alias', '--tag', '--remove-tag', '--context',
   // General
