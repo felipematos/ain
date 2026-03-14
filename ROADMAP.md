@@ -43,8 +43,8 @@
 - local/cloud routing
 - fallback chain execution
 
-## v0.8.0+ — Ecosystem
-- OpenClaw plugin
-- npm package publish
-- Docker image
-- n8n/community integrations
+## v0.8.0 — Ecosystem ✅
+- npm package publish ✅
+- OpenClaw plugin ✅
+- Docker image (deferred)
+- n8n/community integrations (deferred)
