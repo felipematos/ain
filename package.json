@@ -16,11 +16,24 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felipematos/ain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/felipematos/ain/issues"
+  },
+  "homepage": "https://github.com/felipematos/ain#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
+    "prepublishOnly": "npm run build && npm run test",
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest run",
