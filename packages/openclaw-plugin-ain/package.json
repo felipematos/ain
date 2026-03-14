@@ -17,7 +17,7 @@
     "prepublishOnly": "npm run build && npm run test"
   },
   "dependencies": {
-    "ain-cli": "^0.8.0"
+    "@felipematos/ain-cli": "^0.8.0"
   },
   "peerDependencies": {
     "openclaw": ">=1.0.0"

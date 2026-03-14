@@ -1,4 +1,4 @@
-import { loadConfig } from 'ain-cli';
+import { loadConfig } from '@felipematos/ain-cli';
 import { registerAinProviders } from './providers.js';
 import { registerAinTools } from './tools.js';
 import { registerRoutingHook } from './routing-hook.js';

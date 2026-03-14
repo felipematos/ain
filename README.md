@@ -5,7 +5,7 @@
 AIN is provider-agnostic and designed for terminal use, shell scripts, CI pipelines, and workflow automation. It works with any OpenAI-compatible API: LM Studio, Ollama, OpenAI, vLLM, and more.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![npm version](https://img.shields.io/npm/v/ain-cli.svg)](https://www.npmjs.com/package/ain-cli)
+[![npm version](https://img.shields.io/npm/v/@felipematos/ain-cli.svg)](https://www.npmjs.com/package/@felipematos/ain-cli)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 
 ---
@@ -69,7 +69,7 @@ AIN is provider-agnostic and designed for terminal use, shell scripts, CI pipeli
 ### npm (recommended)
 
 ```bash
-npm install -g ain-cli
+npm install -g @felipematos/ain-cli
 ```
 
 ### From source
@@ -597,7 +597,7 @@ When using `--json` mode or `--schema`, the `mode` field is `"json"` and `output
 AIN can be used as a Node.js/TypeScript library:
 
 ```bash
-npm install ain-cli
+npm install @felipematos/ain-cli
 ```
 
 ### `run()`
@@ -605,7 +605,7 @@ npm install ain-cli
 Execute a prompt and get a structured result.
 
 ```typescript
-import { run } from 'ain-cli';
+import { run } from '@felipematos/ain-cli';
 
 const result = await run({
   prompt: 'What is the capital of France?',
@@ -663,7 +663,7 @@ interface RunResult {
 Stream tokens as an async generator.
 
 ```typescript
-import { stream } from 'ain-cli';
+import { stream } from '@felipematos/ain-cli';
 
 for await (const token of stream({ prompt: 'Tell me a story' })) {
   process.stdout.write(token);
@@ -677,7 +677,7 @@ Streaming supports fallback chains — if the primary provider fails, AIN transp
 Get an intelligent routing decision without executing.
 
 ```typescript
-import { route, run } from 'ain-cli';
+import { route, run } from '@felipematos/ain-cli';
 
 const decision = route({ prompt: 'Classify this email as spam' });
 // {
@@ -712,7 +712,7 @@ import {
   configExists,     // Check if config file exists
   getConfigPath,    // Get config file path
   getConfigDir,     // Get config directory (~/.ain/)
-} from 'ain-cli';
+} from '@felipematos/ain-cli';
 ```
 
 ### Utility Functions
@@ -730,7 +730,7 @@ import {
   loadPolicies,        // Load routing policies from disk
   simulateRoute,       // Dry-run routing decision
   listProviders,       // Get configured provider names
-} from 'ain-cli';
+} from '@felipematos/ain-cli';
 ```
 
 ---
@@ -762,7 +762,7 @@ import type {
 
   // Doctor
   CheckResult,
-} from 'ain-cli';
+} from '@felipematos/ain-cli';
 ```
 
 ---

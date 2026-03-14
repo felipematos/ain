@@ -1,4 +1,4 @@
-import { route } from 'ain-cli';
+import { route } from '@felipematos/ain-cli';
 import type { OpenClawPluginApi } from './types.js';
 
 export function registerRoutingHook(api: OpenClawPluginApi, policyName?: string): void {

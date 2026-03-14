@@ -14,7 +14,7 @@ Bridges the [AIN](https://github.com/felipematos/ain) provider registry, intelli
 npm install openclaw-plugin-ain
 ```
 
-Requires [ain-cli](https://www.npmjs.com/package/ain-cli) (installed as a dependency).
+Requires [@felipematos/ain-cli](https://www.npmjs.com/package/@felipematos/ain-cli) (installed as a dependency).
 
 ## Configuration
 

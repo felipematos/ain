@@ -1,5 +1,5 @@
-import { createAdapter, loadConfig } from 'ain-cli';
-import type { AinConfig } from 'ain-cli';
+import { createAdapter, loadConfig } from '@felipematos/ain-cli';
+import type { AinConfig } from '@felipematos/ain-cli';
 import type { OpenClawPluginApi, OpenClawChatRequest, OpenClawChatResponse } from './types.js';
 
 export function registerAinProviders(api: OpenClawPluginApi, config: AinConfig): void {

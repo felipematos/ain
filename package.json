@@ -1,5 +1,5 @@
 {
-  "name": "ain-cli",
+  "name": "@felipematos/ain-cli",
   "version": "0.8.0",
   "description": "AI Node — scriptable CLI and library for LLM tasks",
   "keywords": ["ai", "llm", "cli", "openai", "automation", "scripting"],

@@ -1,4 +1,4 @@
-import { run, classifyTask, estimateComplexity } from 'ain-cli';
+import { run, classifyTask, estimateComplexity } from '@felipematos/ain-cli';
 import type { OpenClawPluginApi } from './types.js';
 
 export function registerAinTools(api: OpenClawPluginApi): void {

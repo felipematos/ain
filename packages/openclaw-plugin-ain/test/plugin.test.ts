@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { OpenClawPluginApi, OpenClawToolDefinition, OpenClawProviderDefinition, OpenClawHookDefinition } from '../src/types.js';
 
 // Mock ain-cli
-vi.mock('ain-cli', () => ({
+vi.mock('@felipematos/ain-cli', () => ({
   loadConfig: vi.fn(() => ({
     version: 1,
     providers: {
