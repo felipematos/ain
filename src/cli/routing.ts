@@ -4,7 +4,7 @@ import { route, simulateRoute, getPolicyFilePath, loadPolicies } from '../routin
 import { getConfigDir, loadConfig } from '../config/loader.js';
 
 export function registerRoutingCommands(program: Command): void {
-  const routing = program.command('routing').description('Routing policies and simulation');
+  const routing = program.command('routing').alias('rt').description('Routing policies and simulation');
 
   routing
     .command('simulate <prompt>')

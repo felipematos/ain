@@ -4,6 +4,7 @@ import { runDoctorChecks, renderDoctorResults } from '../doctor/checks.js';
 export function registerDoctorCommand(program: Command): void {
   program
     .command('doctor')
+    .alias('d')
     .description('Check AIN configuration and provider health')
     .option('-p, --provider <name>', 'Check specific provider only')
     .option('--json', 'Output results as JSON')

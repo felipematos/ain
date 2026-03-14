@@ -5,7 +5,7 @@ import { stringify as stringifyYaml } from 'yaml';
 import { initConfig, getConfigPath, configExists, loadConfig, loadUserConfig, saveConfig, getProvider, PROJECT_CONFIG_FILENAME } from '../config/loader.js';
 
 export function registerConfigCommands(program: Command): void {
-  const config = program.command('config').description('Manage configuration');
+  const config = program.command('config').alias('c').description('Manage configuration');
 
   config
     .command('path')

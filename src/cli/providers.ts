@@ -13,7 +13,7 @@ import type { ProviderConfig } from '../config/types.js';
 import { ProviderConfigSchema } from '../config/types.js';
 
 export function registerProviderCommands(program: Command): void {
-  const providers = program.command('providers').description('Manage providers');
+  const providers = program.command('providers').alias('p').description('Manage providers');
 
   providers
     .command('list')

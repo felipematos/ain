@@ -6,7 +6,8 @@ import { renderText, renderError } from '../output/renderer.js';
 export function registerAskCommand(program: Command): void {
   program
     .command('ask [prompt]')
-    .description('Run a prompt and get a plain text answer')
+    .alias('a')
+    .description('Run a prompt and get a plain text answer (default command)')
     .option('-p, --provider <name>', 'Provider to use')
     .option('-m, --model <id>', 'Model to use')
     .option('-s, --system <text>', 'System prompt')

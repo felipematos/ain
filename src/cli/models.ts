@@ -3,7 +3,7 @@ import { loadConfig, loadUserConfig, resolveProvider, saveConfig, mergeModels } 
 import { createAdapter } from '../providers/openai-compatible.js';
 
 export function registerModelCommands(program: Command): void {
-  const models = program.command('models').description('Manage models');
+  const models = program.command('models').alias('m').description('Manage models');
 
   models
     .command('list')

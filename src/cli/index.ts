@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { registerProviderCommands } from './providers.js';
@@ -11,6 +10,7 @@ import { registerAskCommand } from './ask.js';
 import { registerRunCommand } from './run.js';
 import { registerDoctorCommand } from './doctor.js';
 import { registerRoutingCommands } from './routing.js';
+import { preprocessArgs } from './preprocess.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,7 +39,7 @@ registerConfigCommands(program);
 registerDoctorCommand(program);
 registerRoutingCommands(program);
 
-program.parseAsync(process.argv).catch((err) => {
+program.parseAsync(preprocessArgs(process.argv)).catch((err) => {
   process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
   process.exit(1);
 });

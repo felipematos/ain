@@ -5,9 +5,10 @@ import { renderText, renderError } from '../output/renderer.js';
 
 export function registerRunCommand(program: Command): void {
   program
-    .command('run')
+    .command('run [prompt]')
+    .alias('r')
     .description('Machine-oriented prompt execution with structured output')
-    .option('--prompt <text>', 'Prompt text')
+    .option('--prompt <text>', 'Prompt text (alternative to positional argument)')
     .option('-f, --file <path>', 'Read prompt from file')
     .option('-p, --provider <name>', 'Provider to use')
     .option('-m, --model <id>', 'Model to use (accepts alias)')
@@ -29,13 +30,13 @@ export function registerRunCommand(program: Command): void {
     .option('--skip-think', 'Disable thinking mode (Qwen3/DeepSeek reasoning models) [alias: --no-think]')
     .option('--no-think', 'Alias for --skip-think')
     .option('-v, --verbose', 'Print provider/model/token info to stderr')
-    .action(async (opts) => {
+    .action(async (promptArg: string | undefined, opts) => {
       // useJson = ask the model to return JSON (affects system prompt)
       // useEnvelope = wrap output in JSON envelope (affects rendering only)
       const useJson = opts.json || !!opts.schema || !!opts.field;
       const useEnvelope = useJson || opts.jsonl;
       try {
-        let prompt = opts.prompt as string | undefined;
+        let prompt = (opts.prompt as string | undefined) ?? promptArg;
 
         if (opts.file) {
           if (opts.prompt) {
