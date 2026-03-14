@@ -94,7 +94,7 @@ export function registerAskCommand(program: Command): void {
           system: systemText,
           temperature: resolvedTemperature,
           maxTokens: resolvedMaxTokens,
-          noThink: opts.skipThink || opts.noThink,
+          noThink: opts.skipThink || opts.think === false,
           jsonMode: useJson,  // only instruct model when json/field requested
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,

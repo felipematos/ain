@@ -110,7 +110,7 @@ export function registerRunCommand(program: Command): void {
           maxTokens: resolvedMaxTokens,
           jsonMode: useJson,
           schema,
-          noThink: opts.skipThink || opts.noThink,
+          noThink: opts.skipThink || opts.think === false,
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,
           fallbackChain,

@@ -158,3 +158,15 @@ describe('OpenAICompatibleAdapter.chatStream', () => {
     await expect(gen.next()).rejects.toThrow('HTTP 500');
   });
 });
+
+describe('AbortSignal handling', () => {
+  it('passes AbortSignal to fetch for timeout support', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      id: 'test', object: 'chat.completion', created: 1, model: 'test-model',
+      choices: [{ index: 0, message: { role: 'assistant', content: 'Hi' }, finish_reason: 'stop' }],
+    }));
+    await adapter.chat({ model: 'test-model', messages: [] });
+    const init = mockFetch.mock.calls[0]![1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+});

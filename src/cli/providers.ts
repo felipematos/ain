@@ -105,8 +105,13 @@ export function registerProviderCommands(program: Command): void {
     .description('Remove a provider')
     .action((name: string) => {
       try {
+        const userConfig = loadUserConfig();
+        const wasDefault = userConfig.defaults?.provider === name;
         removeProvider(name);
         process.stdout.write(`Provider "${name}" removed.\n`);
+        if (wasDefault) {
+          process.stderr.write(`Warning: "${name}" was the default provider. Run: ain config set-default --provider <name>\n`);
+        }
       } catch (err) {
         process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
         process.exit(1);

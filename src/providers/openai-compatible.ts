@@ -78,12 +78,20 @@ export class OpenAICompatibleAdapter {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const response = await globalThis.fetch(url, {
-        method: 'POST',
-        headers: this.headers,
-        body: JSON.stringify({ ...request, stream: true }),
-        signal: controller.signal,
-      });
+      let response: Response;
+      try {
+        response = await globalThis.fetch(url, {
+          method: 'POST',
+          headers: this.headers,
+          body: JSON.stringify({ ...request, stream: true }),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if ((err as { name?: string })?.name === 'AbortError') {
+          throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+        }
+        throw err;
+      }
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
@@ -150,6 +158,11 @@ export class OpenAICompatibleAdapter {
       }
 
       return await response.json();
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') {
+        throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+      }
+      throw err;
     } finally {
       clearTimeout(timer);
     }
