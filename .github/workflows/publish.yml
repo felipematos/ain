@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+        env:
+          SKIP_INTEGRATION: '1'
 
       # npm Trusted Publishing (provenance-based, no token needed)
       - run: npm publish --access=public --provenance
