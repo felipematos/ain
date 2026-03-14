@@ -1,12 +1,60 @@
 # AIN — AI Node
 
-**Scriptable CLI and library for running LLM tasks with predictable, shell-safe behavior.**
-
-AIN is provider-agnostic and designed for terminal use, shell scripts, CI pipelines, and workflow automation. It works with any OpenAI-compatible API: LM Studio, Ollama, OpenAI, vLLM, and more.
+**The missing CLI for LLMs.** One command, any provider, structured output, intelligent routing.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/@felipematos/ain-cli.svg)](https://www.npmjs.com/package/@felipematos/ain-cli)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+
+```bash
+npm install -g @felipematos/ain-cli
+```
+
+AIN turns any OpenAI-compatible API into a scriptable, shell-safe command. No boilerplate. No SDKs. Just prompts in, answers out.
+
+```bash
+$ ain What is the capital of Brazil?
+Brasilia
+
+$ ain Explain quantum entanglement briefly --stream
+Quantum entanglement is a phenomenon where two particles become...
+
+$ ain r List 3 programming languages as JSON --json
+{
+  "ok": true,
+  "provider": "openai",
+  "model": "gpt-4o",
+  "output": ["Python", "TypeScript", "Rust"],
+  ...
+}
+```
+
+### Why AIN?
+
+- **Any provider, one interface.** OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, LM Studio, vLLM — AIN works with all of them through a single, consistent CLI. Switch providers by changing one flag.
+
+- **Built for automation.** Clean stdout for piping, diagnostics to stderr, JSON/JSONL output modes, schema validation, field extraction, and proper exit codes. AIN is a first-class citizen in shell scripts, CI pipelines, and cron jobs.
+
+- **Intelligent routing.** Don't hardcode models. AIN classifies your prompt and picks the right model tier automatically — fast models for simple tasks, reasoning models for complex ones. Define policies, set fallback chains, and let AIN handle the rest.
+
+- **Agent-ready.** AIN integrates with AI agent frameworks like [OpenClaw](https://github.com/openclaw/openclaw) via the [`openclaw-plugin-ain`](https://www.npmjs.com/package/openclaw-plugin-ain) plugin. Your AIN providers, routing engine, and execution layer become tools that agents can call directly. Available on [ClawHub](https://clawhub.ai).
+
+- **Zero friction.** No quotes needed. Command aliases (`ain r`, `ain p`, `ain d`). Option abbreviations (`--st`, `--ro`). An onboarding wizard on first run. Templates for 14 providers. You're productive in seconds.
+
+```bash
+# Use it in scripts
+result=$(ain r Extract the sentiment --json --field output)
+
+# Pipe content through it
+cat article.txt | ain Summarize this in 3 bullet points
+
+# Route intelligently across models
+ain Classify this support ticket --route --tier fast
+
+# Use as a Node.js library
+import { run, stream, route } from '@felipematos/ain-cli';
+const result = await run({ prompt: 'Hello', provider: 'openai' });
+```
 
 ---
 
