@@ -16,6 +16,9 @@ AIN is provider-agnostic and designed for terminal use, shell scripts, CI pipeli
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [CLI Reference](#cli-reference)
+  - [Default Command](#default-command)
+  - [Command Aliases](#command-aliases)
+  - [Option Abbreviations](#option-abbreviations)
   - [ain ask](#ain-ask)
   - [ain run](#ain-run)
   - [ain providers](#ain-providers)
@@ -23,6 +26,8 @@ AIN is provider-agnostic and designed for terminal use, shell scripts, CI pipeli
   - [ain doctor](#ain-doctor)
   - [ain routing](#ain-routing)
   - [ain config](#ain-config)
+- [Provider Templates](#provider-templates)
+- [Onboarding Wizard](#onboarding-wizard)
 - [Configuration](#configuration)
   - [User Config](#user-config)
   - [Project Config Overlay](#project-config-overlay)
@@ -61,6 +66,11 @@ AIN is provider-agnostic and designed for terminal use, shell scripts, CI pipeli
 - **Project overlays** — per-project `ain.yaml` overrides checked into repos
 - **Dual-use** — works as a CLI tool and as a Node.js library
 - **Zero runtime bloat** — only 3 production dependencies (commander, yaml, zod)
+- **No quotes needed** — `ain What is the capital of Brazil?` just works
+- **Command aliases** — `a`(sk), `r`(un), `p`(roviders), `m`(odels), `c`(onfig), `d`(octor), `rt`(routing)
+- **Option abbreviations** — `--st` for `--stream`, `--ro` for `--route`, and more
+- **Provider templates** — one-command setup for OpenAI, Anthropic, Groq, and 11 more
+- **Onboarding wizard** — interactive first-run setup guides you through provider configuration
 
 ---
 
@@ -101,44 +111,85 @@ ain doctor
 ## Quick Start
 
 ```bash
-# 1. Initialize configuration
-ain config init
+# First run? The wizard will guide you. Or set up manually:
+ain providers add --template openai --set-default
+# Or: ain providers add --template ollama --set-default
 
-# 2. Add a provider (LM Studio, Ollama, OpenAI, etc.)
-ain providers add local --base-url http://localhost:1234/v1 --set-default
+# Ask a question (no quotes needed!)
+ain What is the capital of Brazil?
 
-# 3. Refresh model catalog
-ain models refresh
+# Stream a response
+ain Explain quantum entanglement briefly --stream
 
-# 4. Ask a question
-ain ask "What is the capital of Brazil?"
+# Get structured JSON output
+ain r Get info about France --json
 
-# 5. Stream a response
-ain ask "Explain quantum entanglement briefly" --stream
+# Schema-validated output
+ain r Extract company info --schema company.schema.json
 
-# 6. Get structured JSON output
-ain run --prompt "Get info about France" --json
+# Extract a single field
+ain r Return facts about Japan --schema facts.json --field capital
 
-# 7. Schema-validated output
-ain run --prompt "Extract company info" --schema company.schema.json
-
-# 8. Extract a single field
-ain run --prompt "Return facts about Japan" --schema facts.json --field capital
-
-# 9. Use intelligent routing (picks the best model for the task)
-ain ask "Classify this email as spam or not" --route
+# Use intelligent routing (picks the best model automatically)
+ain Classify this email as spam or not --route
 ```
 
 ---
 
 ## CLI Reference
 
+### Default Command
+
+If no command is given, AIN treats everything as a prompt (using `ask` under the hood). No quotes required — bare words are joined automatically, and options are parsed from the end:
+
+```bash
+ain What is the capital of Brazil?
+ain Explain quantum entanglement briefly --stream
+ain Translate this to Portuguese --model gpt-4o --skip-think
+```
+
+### Command Aliases
+
+Every command has a short alias:
+
+| Command | Alias | Example |
+|---------|-------|---------|
+| `ask` | `a` | `ain a Hello world` |
+| `run` | `r` | `ain r Get info --json` |
+| `providers` | `p` | `ain p list` |
+| `models` | `m` | `ain m list --live` |
+| `config` | `c` | `ain c show` |
+| `doctor` | `d` | `ain d --json` |
+| `routing` | `rt` | `ain rt policies` |
+
+### Option Abbreviations
+
+Long options can be abbreviated to their shortest unambiguous prefix:
+
+| Abbreviation | Expands to | Notes |
+|-------------|------------|-------|
+| `--st` | `--stream` | |
+| `--ro` | `--route` | |
+| `--sk` | `--skip-think` | |
+| `--dr` | `--dry-run` | |
+| `--sc` | `--schema` | |
+| `--po` | `--policy` | |
+| `--tie` | `--tier` | `--ti` is ambiguous with `--timeout` |
+| `--tim` | `--timeout` | |
+| `--ret` | `--retry` | `--re` is ambiguous with `--remove-tag` |
+| `--ma` | `--max-tokens` | |
+| `--li` | `--live` | |
+| `--fo` | `--force` | |
+
+Ambiguous prefixes (matching multiple options) are left as-is and will produce an error. Use a longer prefix to disambiguate.
+
 ### `ain ask`
 
-Human-friendly prompt execution. Defaults to plain text output.
+Human-friendly prompt execution. Defaults to plain text output. This is the default command when no command is specified.
 
 ```bash
 ain ask "<prompt>" [options]
+ain <prompt words> [options]          # equivalent (default command)
 ```
 
 | Option | Description |
@@ -164,31 +215,36 @@ ain ask "<prompt>" [options]
 **Examples:**
 
 ```bash
-# Basic usage
-ain ask "Summarize this text" --file ./article.txt
+# No quotes needed
+ain Summarize this text --file ./article.txt
 
 # Translate with a specific model, suppress thinking
-ain ask "Translate to Portuguese" --model qwen-reason --skip-think
+ain Translate to Portuguese --model qwen-reason --sk
 
 # Stream with routing
-ain ask "Write a haiku about coding" --stream --route
+ain Write a haiku about coding --st --ro
 
 # Force fast tier
-ain ask "Is this spam?" --route --tier fast
+ain Is this spam --ro --tie fast
 
 # Preview routing without running
-ain ask "Explain relativity" --dry-run
+ain Explain relativity --dr
 
 # Pipe stdin
 echo "some text" | ain ask "Summarize this:"
+
+# With quotes (also works)
+ain ask "Tell me about France" --stream --verbose
 ```
 
 ### `ain run`
 
-Machine-oriented execution with structured output modes. Designed for scripts and pipelines.
+Machine-oriented execution with structured output modes. Designed for scripts and pipelines. Accepts a positional prompt (no `--prompt` needed):
 
 ```bash
-ain run --prompt "<prompt>" [options]
+ain run <prompt words> [options]
+ain r <prompt words> [options]        # using alias
+ain run --prompt "<prompt>" [options] # explicit flag (also works)
 ```
 
 Accepts the same options as `ain ask`, plus:
@@ -201,61 +257,71 @@ Accepts the same options as `ain ask`, plus:
 **Examples:**
 
 ```bash
-# JSON envelope output
-ain run --prompt "List 3 colors" --json
+# JSON envelope output (no quotes needed)
+ain r List 3 colors --json
 
 # Compact JSONL for piping
-ain run --prompt "Analyze this log" --jsonl
+ain r Analyze this log --jsonl
 
 # Schema validation
-ain run --prompt "Extract user info" --schema user.schema.json
+ain r Extract user info --sc user.schema.json
 
 # Field extraction with dot notation
-ain run --prompt "City facts" --schema city.json --field location.coordinates
+ain r City facts --sc city.json --field location.coordinates
 
 # Policy-based routing with fallback
-ain run --prompt "Classify this ticket" --policy local-first
+ain r Classify this ticket --po local-first
 
 # Reliability options
-ain run --prompt "Process data" --retry 5 --timeout 30000
+ain r Process data --ret 5 --tim 30000
+
+# With --prompt flag (still works)
+ain run --prompt "Complex prompt with --dashes" --json
 ```
 
 ### `ain providers`
 
-Manage LLM provider connections.
+Manage LLM provider connections. Alias: `ain p`.
 
 ```bash
-# Add a provider
-ain providers add <name> --base-url <url> [--api-key <key>] [--timeout <ms>] [--set-default]
+# Add from a template (recommended)
+ain p add --template openai --set-default
+ain p add --template ollama --set-default
 
-# List all providers
-ain providers list
-ain providers list --json     # Machine-readable output
+# Add manually
+ain p add <name> --base-url <url> [--api-key <key>] [--timeout <ms>] [--set-default]
+
+# List available templates
+ain p templates
+
+# List configured providers
+ain p list
+ain p list --json     # Machine-readable output
 
 # Show provider details
-ain providers show <name>
+ain p show <name>
 
 # Remove a provider
-ain providers remove <name>
+ain p remove <name>
 
 # Set default provider
-ain providers set-default <name>
+ain p set-default <name>
 ```
 
 **Examples:**
 
 ```bash
-# Local LM Studio
-ain providers add lmstudio --base-url http://localhost:1234/v1 --set-default
+# One-liner setup from templates
+ain p add --template openai --api-key env:OPENAI_API_KEY --set-default
+ain p add --template groq --set-default
+ain p add --template anthropic --set-default
+ain p add --template ollama --set-default
 
-# Ollama
-ain providers add ollama --base-url http://localhost:11434/v1 --set-default
+# Custom provider
+ain p add my-server --base-url http://gpu-server:8080/v1 --timeout 120000
 
-# OpenAI (API key from environment variable)
-ain providers add openai --base-url https://api.openai.com/v1 --api-key env:OPENAI_API_KEY
-
-# Remote server with extended timeout
-ain providers add remote --base-url http://gpu-server:8080/v1 --timeout 120000
+# Custom name with template base
+ain p add my-openai --template openai --api-key sk-abc123
 ```
 
 ### `ain models`
@@ -340,6 +406,57 @@ ain config show
 # Set defaults
 ain config set-default --provider <name> --model <id>
 ain config set-default --temperature 0.3 --max-tokens 2048
+```
+
+---
+
+## Provider Templates
+
+AIN ships with 14 built-in templates for quick provider setup. List them with `ain providers templates`:
+
+| Template | Provider | Base URL | API Key Env Var |
+|----------|----------|----------|-----------------|
+| `openai` | OpenAI | `api.openai.com/v1` | `OPENAI_API_KEY` |
+| `anthropic` | Anthropic | `api.anthropic.com/v1` | `ANTHROPIC_API_KEY` |
+| `openrouter` | OpenRouter | `openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
+| `xai` | xAI (Grok) | `api.x.ai/v1` | `XAI_API_KEY` |
+| `zai` | Z.ai (Zhipu) | `api.z.ai/api/paas/v4` | `ZAI_API_KEY` |
+| `groq` | Groq | `api.groq.com/openai/v1` | `GROQ_API_KEY` |
+| `together` | Together AI | `api.together.xyz/v1` | `TOGETHER_API_KEY` |
+| `mistral` | Mistral AI | `api.mistral.ai/v1` | `MISTRAL_API_KEY` |
+| `deepseek` | DeepSeek | `api.deepseek.com/v1` | `DEEPSEEK_API_KEY` |
+| `fireworks` | Fireworks AI | `api.fireworks.ai/inference/v1` | `FIREWORKS_API_KEY` |
+| `ollama` | Ollama (local) | `localhost:11434/v1` | — |
+| `lmstudio` | LM Studio (local) | `localhost:1234/v1` | — |
+| `vllm` | vLLM (local) | `localhost:8000/v1` | — |
+| `custom` | Any OpenAI-compatible | *(you provide)* | — |
+
+Each cloud template includes pre-configured default models with aliases and routing tags. Use templates with:
+
+```bash
+ain providers add --template openai --set-default
+ain providers add --template groq --api-key env:GROQ_API_KEY --set-default
+```
+
+---
+
+## Onboarding Wizard
+
+On first use (or when no providers are configured), AIN launches an interactive wizard that guides you through setup:
+
+1. Presents a numbered list of provider templates (cloud + local)
+2. For cloud providers: prompts for API key (detects existing env vars)
+3. For local providers: confirms or customizes the base URL
+4. Tests the connection and auto-discovers models
+5. Sets the provider as default and shows getting-started commands
+
+The wizard only runs in interactive terminals (TTY). For non-interactive environments, use `ain providers add --template <id>` instead.
+
+To re-run the wizard, remove all providers and run any prompt command:
+
+```bash
+ain config init --force    # reset config
+ain Hello                  # triggers wizard
 ```
 
 ---
@@ -823,7 +940,7 @@ AIN follows a six-layer architecture that separates concerns cleanly:
 
 ```
 src/
-├── cli/           # Command handlers (ask, run, providers, models, doctor, routing, config)
+├── cli/           # Command handlers, preprocessor, templates, wizard
 ├── config/        # Config loading, Zod schemas, secret resolution, project overlays
 ├── providers/     # OpenAICompatibleAdapter (chat, stream, health check, model listing)
 ├── execution/     # run(), stream(), schema validation, think-block filtering
