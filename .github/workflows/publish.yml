@@ -26,7 +26,8 @@ jobs:
           SKIP_INTEGRATION: '1'
 
       # npm Trusted Publishing (provenance-based, no token needed)
-      - run: npm publish --access=public --provenance
+      # --ignore-scripts skips prepublishOnly (already built and tested above)
+      - run: npm publish --access=public --provenance --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
