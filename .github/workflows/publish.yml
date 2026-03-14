@@ -1,0 +1,46 @@
+name: Publish to npm and ClawHub
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      # npm Trusted Publishing (provenance-based, no token needed)
+      - run: npm publish --access=public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # ClawHub
+      - name: Install ClawHub CLI
+        run: npm install -g clawhub
+
+      - name: Publish to ClawHub
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          clawhub publish ./packages/openclaw-plugin-ain \
+            --slug openclaw-plugin-ain \
+            --name "AIN - AI Node Plugin" \
+            --version "$VERSION" \
+            --changelog "Automated release v$VERSION" \
+            --tags latest
+        env:
+          CLAWHUB_REGISTRY: https://clawhub.ai
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
