@@ -35,7 +35,10 @@ jobs:
         run: npm install -g clawhub
 
       - name: Publish to ClawHub
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
         run: |
+          clawhub login --token "$CLAWHUB_TOKEN" --no-browser
           VERSION=${GITHUB_REF_NAME#v}
           clawhub publish ./packages/openclaw-plugin-ain \
             --slug openclaw-plugin-ain \
@@ -43,6 +46,3 @@ jobs:
             --version "$VERSION" \
             --changelog "Automated release v$VERSION" \
             --tags latest
-        env:
-          CLAWHUB_REGISTRY: https://clawhub.ai
-          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
