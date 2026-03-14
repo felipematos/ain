@@ -25,9 +25,11 @@ jobs:
         env:
           SKIP_INTEGRATION: '1'
 
-      # npm Trusted Publishing (OIDC provenance, no secret needed)
+      # Publish to npm
       # --ignore-scripts skips prepublishOnly (already built and tested above)
       - run: npm publish --access=public --provenance --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # ClawHub
       - name: Install ClawHub CLI
