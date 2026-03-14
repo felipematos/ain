@@ -16,16 +16,15 @@ AIN turns any OpenAI-compatible API into a scriptable, shell-safe command. No bo
 $ ain What is the capital of Brazil?
 Brasilia
 
+$ ain Is Brad Pitt an actor? --bool
+true
+
 $ ain Explain quantum entanglement briefly --stream
 Quantum entanglement is a phenomenon where two particles become...
 
-$ ain r List 3 programming languages as JSON --json
+$ ain List 3 programming languages --json
 {
-  "ok": true,
-  "provider": "openai",
-  "model": "gpt-4o",
-  "output": ["Python", "TypeScript", "Rust"],
-  ...
+  "output": ["Python", "TypeScript", "Rust"]
 }
 ```
 
