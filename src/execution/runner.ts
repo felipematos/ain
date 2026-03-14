@@ -11,6 +11,7 @@ export interface RunOptions {
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
+  boolMode?: boolean;
   schema?: object;
   noThink?: boolean;
   maxRetries?: number;
@@ -111,6 +112,12 @@ function buildMessages(options: RunOptions): ChatMessage[] {
     messages.push({
       role: 'system',
       content: 'You must respond with valid JSON only. Return only the JSON object, no markdown, no other text.',
+    });
+  }
+  if (options.boolMode) {
+    messages.push({
+      role: 'system',
+      content: 'You must respond with exactly "true" or "false" (lowercase, no quotes, no punctuation, no extra text).',
     });
   }
   messages.push({ role: 'user', content: options.prompt });
@@ -227,6 +234,10 @@ async function runOnce(options: RunOptions): Promise<RunResult> {
     }
   }
 
+  if (options.boolMode) {
+    parsedOutput = parseBooleanOutput(rawOutput);
+  }
+
   return {
     ok: true,
     provider: providerName,
@@ -252,6 +263,13 @@ export function cleanModelOutput(text: string): string {
   // Strip common end-of-sequence tokens
   cleaned = cleaned.replace(/<\|im_end\|>/g, '').replace(/<\|end\|>/g, '').replace(/<\/s>/g, '');
   return cleaned.trim();
+}
+
+export function parseBooleanOutput(raw: string): boolean {
+  const normalized = raw.trim().toLowerCase().replace(/[."'!]/g, '');
+  if (normalized === 'true' || normalized === 'yes') return true;
+  if (normalized === 'false' || normalized === 'no') return false;
+  throw new Error(`Expected boolean response ("true" or "false"), got: ${raw}`);
 }
 
 function validateSchema(

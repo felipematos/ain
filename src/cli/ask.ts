@@ -28,10 +28,12 @@ export function registerAskCommand(program: Command): void {
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
     .option('-j, --json', 'Output JSON envelope (pretty-printed)')
     .option('--jsonl', 'Output compact single-line JSON (JSONL format)')
+    .option('-b, --bool', 'Output as boolean true/false')
     .action(async (promptArg: string | undefined, opts) => {
       // useJson = ask the model to return JSON (affects system prompt)
       // useEnvelope = wrap output in JSON envelope (affects rendering only)
       const useJson = opts.json || !!opts.field;
+      const useBool = !!opts.bool;
       const useEnvelope = useJson || opts.jsonl;
       try {
         let prompt = promptArg;
@@ -97,16 +99,17 @@ export function registerAskCommand(program: Command): void {
           maxTokens: resolvedMaxTokens,
           noThink: opts.skipThink || opts.think === false,
           jsonMode: useJson,  // only instruct model when json/field requested
+          boolMode: useBool,
           maxRetries: opts.retry as number | undefined,
           timeoutMs: opts.timeout as number | undefined,
           fallbackChain,
         };
 
-        if (opts.stream && useEnvelope) {
-          process.stderr.write('Warning: --stream is not supported with --json/--jsonl; using buffered mode.\n');
+        if (opts.stream && (useEnvelope || useBool)) {
+          process.stderr.write('Warning: --stream is not supported with --json/--jsonl/--bool; using buffered mode.\n');
         }
 
-        if (opts.stream && !useEnvelope) {
+        if (opts.stream && !useEnvelope && !useBool) {
           if (opts.verbose) {
             const { resolveProvider, resolveModel } = await import('../config/loader.js');
             const { name: pName } = resolveProvider(runOpts.provider);
@@ -140,11 +143,11 @@ export function registerAskCommand(program: Command): void {
             const out = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
             process.stdout.write(out + '\n');
           } else {
-            renderText(result, { json: opts.json || !!opts.field, jsonl: opts.jsonl });
+            renderText(result, { json: opts.json || !!opts.field, jsonl: opts.jsonl, bool: useBool });
           }
         }
       } catch (err) {
-        renderError(err instanceof Error ? err : String(err), useEnvelope);
+        renderError(err instanceof Error ? err : String(err), useEnvelope || useBool);
         process.exit(1);
       }
     });

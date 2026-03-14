@@ -17,6 +17,7 @@ export function registerRunCommand(program: Command): void {
     .option('--jsonl', 'Output compact single-line JSON (JSONL format)')
     .option('--schema <path>', 'Path to JSON schema file for structured output')
     .option('--field <key>', 'Extract a single field from JSON output (implies --json)')
+    .option('-b, --bool', 'Output as boolean true/false')
     .option('--temperature <n>', 'Temperature (0-2)', parseFloat)
     .option('--max-tokens <n>', 'Max tokens', parseInt)
     .option('--retry <n>', 'Total request attempts on transient errors (default: 3)', parseInt)
@@ -34,6 +35,7 @@ export function registerRunCommand(program: Command): void {
       // useJson = ask the model to return JSON (affects system prompt)
       // useEnvelope = wrap output in JSON envelope (affects rendering only)
       const useJson = opts.json || !!opts.schema || !!opts.field;
+      const useBool = !!opts.bool;
       const useEnvelope = useJson || opts.jsonl;
       try {
         let prompt = (opts.prompt as string | undefined) ?? promptArg;
@@ -110,6 +112,7 @@ export function registerRunCommand(program: Command): void {
           temperature: resolvedTemperature,
           maxTokens: resolvedMaxTokens,
           jsonMode: useJson,
+          boolMode: useBool,
           schema,
           noThink: opts.skipThink || opts.think === false,
           maxRetries: opts.retry as number | undefined,
@@ -117,11 +120,11 @@ export function registerRunCommand(program: Command): void {
           fallbackChain,
         };
 
-        if (opts.stream && useEnvelope) {
-          process.stderr.write('Warning: --stream is not supported with --json/--jsonl/--schema; using buffered mode.\n');
+        if (opts.stream && (useEnvelope || useBool)) {
+          process.stderr.write('Warning: --stream is not supported with --json/--jsonl/--schema/--bool; using buffered mode.\n');
         }
 
-        if (opts.stream && !useEnvelope) {
+        if (opts.stream && !useEnvelope && !useBool) {
           if (opts.verbose) {
             const { resolveProvider, resolveModel } = await import('../config/loader.js');
             const { name: pName } = resolveProvider(runOpts.provider);
@@ -157,11 +160,11 @@ export function registerRunCommand(program: Command): void {
             const out = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
             process.stdout.write(out + '\n');
           } else {
-            renderText(result, { json: opts.json || !!opts.schema || !!opts.field, jsonl: opts.jsonl });
+            renderText(result, { json: opts.json || !!opts.schema || !!opts.field, jsonl: opts.jsonl, bool: useBool });
           }
         }
       } catch (err) {
-        renderError(err instanceof Error ? err : String(err), useEnvelope);
+        renderError(err instanceof Error ? err : String(err), useEnvelope || useBool);
         process.exit(1);
       }
     });

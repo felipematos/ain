@@ -41,6 +41,31 @@ describe('renderText', () => {
   });
 });
 
+describe('renderText — bool mode', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('writes "true" to stdout for boolean true', () => {
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    renderText(makeResult({ parsedOutput: true }), { bool: true });
+    expect(spy).toHaveBeenCalledWith('true\n');
+  });
+
+  it('writes "false" to stdout for boolean false', () => {
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    renderText(makeResult({ parsedOutput: false }), { bool: true });
+    expect(spy).toHaveBeenCalledWith('false\n');
+  });
+
+  it('uses JSON envelope when bool + json combined', () => {
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    renderText(makeResult({ parsedOutput: true }), { bool: true, json: true });
+    const written = spy.mock.calls[0]![0] as string;
+    const parsed = JSON.parse(written);
+    expect(parsed.mode).toBe('bool');
+    expect(parsed.output).toBe(true);
+  });
+});
+
 describe('renderText — JSONL mode', () => {
   afterEach(() => vi.restoreAllMocks());
 

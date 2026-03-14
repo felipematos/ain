@@ -213,6 +213,94 @@ describe('run — fallback chain', () => {
   });
 });
 
+describe('run — boolean mode', () => {
+  it('parses true response', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('true'));
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({ prompt: 'Is the sky blue?', boolMode: true });
+    expect(result.parsedOutput).toBe(true);
+  });
+
+  it('parses false response', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('false'));
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({ prompt: 'Is the Earth flat?', boolMode: true });
+    expect(result.parsedOutput).toBe(false);
+  });
+
+  it('normalizes "yes" to true', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('Yes'));
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({ prompt: 'Is water wet?', boolMode: true });
+    expect(result.parsedOutput).toBe(true);
+  });
+
+  it('normalizes "no" to false', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('No'));
+    const { run } = await import('../src/execution/runner.js');
+    const result = await run({ prompt: 'Is fire cold?', boolMode: true });
+    expect(result.parsedOutput).toBe(false);
+  });
+
+  it('throws on non-boolean response', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('maybe'));
+    const { run } = await import('../src/execution/runner.js');
+    await expect(run({ prompt: 'Is this ambiguous?', boolMode: true })).rejects.toThrow('Expected boolean response');
+  });
+
+  it('injects boolean system prompt', async () => {
+    mockChat.mockResolvedValue(makeChatResponse('true'));
+    const { run } = await import('../src/execution/runner.js');
+    await run({ prompt: 'Test', boolMode: true });
+    const req = mockChat.mock.calls[0]![0] as { messages: Array<{ role: string; content: string }> };
+    const systemMsgs = req.messages.filter(m => m.role === 'system');
+    expect(systemMsgs.some(m => m.content.includes('true" or "false"'))).toBe(true);
+  });
+});
+
+describe('parseBooleanOutput', () => {
+  it('parses "true"', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('true')).toBe(true);
+  });
+
+  it('parses "false"', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('false')).toBe(false);
+  });
+
+  it('parses "True" (case-insensitive)', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('True')).toBe(true);
+  });
+
+  it('parses "yes" as true', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('yes')).toBe(true);
+  });
+
+  it('parses "no" as false', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('no')).toBe(false);
+  });
+
+  it('strips trailing punctuation', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('true.')).toBe(true);
+    expect(parseBooleanOutput('False!')).toBe(false);
+  });
+
+  it('strips whitespace', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(parseBooleanOutput('  true  ')).toBe(true);
+  });
+
+  it('throws on non-boolean', async () => {
+    const { parseBooleanOutput } = await import('../src/execution/runner.js');
+    expect(() => parseBooleanOutput('maybe')).toThrow('Expected boolean response');
+  });
+});
+
 describe('cleanModelOutput', () => {
   it('strips <think> blocks', async () => {
     const { cleanModelOutput } = await import('../src/execution/runner.js');

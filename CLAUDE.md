@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AIN (AI Node) is a standalone CLI and library for running LLM tasks with predictable, scriptable behavior. It is provider-agnostic and designed for terminal use, shell scripts, CI pipelines, and workflow automation.
 
-**Current status:** v0.9.1 — fully implemented, all CLI commands working, 170 unit+integration tests passing.
+**Current status:** v0.9.12 — fully implemented, all CLI commands working, 188 unit+integration tests passing.
 
 ## Architecture
 

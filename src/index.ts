@@ -16,7 +16,7 @@ export {
   mergeModels,
   PROJECT_CONFIG_FILENAME,
 } from './config/loader.js';
-export { run, stream, stripMarkdownFences, cleanModelOutput } from './execution/runner.js';
+export { run, stream, stripMarkdownFences, cleanModelOutput, parseBooleanOutput } from './execution/runner.js';
 export { createAdapter } from './providers/openai-compatible.js';
 export { route, simulateRoute, loadPolicies } from './routing/router.js';
 export { classifyTask, estimateComplexity } from './routing/classifier.js';

@@ -33,7 +33,7 @@ $ ain r List 3 programming languages as JSON --json
 
 - **Any provider, one interface.** OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, LM Studio, vLLM — AIN works with all of them through a single, consistent CLI. Switch providers by changing one flag.
 
-- **Built for automation.** Clean stdout for piping, diagnostics to stderr, JSON/JSONL output modes, schema validation, field extraction, and proper exit codes. AIN is a first-class citizen in shell scripts, CI pipelines, and cron jobs.
+- **Built for automation.** Clean stdout for piping, diagnostics to stderr, JSON/JSONL/boolean output modes, schema validation, field extraction, and proper exit codes. AIN is a first-class citizen in shell scripts, CI pipelines, and cron jobs.
 
 - **Intelligent routing.** Don't hardcode models. AIN classifies your prompt and picks the right model tier automatically — fast models for simple tasks, reasoning models for complex ones. Define policies, set fallback chains, and let AIN handle the rest.
 
@@ -227,6 +227,7 @@ Long options can be abbreviated to their shortest unambiguous prefix:
 | `--ret` | `--retry` | `--re` is ambiguous with `--remove-tag` |
 | `--ma` | `--max-tokens` | |
 | `--li` | `--live` | |
+| `--bo` | `--bool` | |
 | `--fo` | `--force` | |
 
 Ambiguous prefixes (matching multiple options) are left as-is and will produce an error. Use a longer prefix to disambiguate.
@@ -245,6 +246,7 @@ ain <prompt words> [options]          # equivalent (default command)
 | `--stream` | Stream tokens progressively |
 | `--json` | Output as pretty-printed JSON envelope |
 | `--jsonl` | Output as compact single-line JSON |
+| `--bool` | Output as boolean `true`/`false` |
 | `--model <id>` | Override model (ID or alias) |
 | `--provider <name>` | Override provider |
 | `--system <text>` | System prompt |
@@ -316,6 +318,9 @@ ain r Extract user info --sc user.schema.json
 
 # Field extraction with dot notation
 ain r City facts --sc city.json --field location.coordinates
+
+# Boolean output
+ain r Is this a question --bool
 
 # Policy-based routing with fallback
 ain r Classify this ticket --po local-first
@@ -730,6 +735,7 @@ Fallback chains work with both `run()` and `stream()` in the library API.
 | Mode | Flag | Output |
 |------|------|--------|
 | Text | *(default)* | Plain text to stdout |
+| Bool | `--bool` | Boolean `true` or `false` to stdout |
 | JSON | `--json` | Pretty-printed JSON envelope |
 | JSONL | `--jsonl` | Compact single-line JSON (pipe-friendly) |
 | Schema | `--schema file.json` | JSON envelope with schema-validated `output` field |
@@ -754,6 +760,29 @@ Fallback chains work with both `run()` and `stream()` in the library API.
 ```
 
 When using `--json` mode or `--schema`, the `mode` field is `"json"` and `output` contains the parsed object instead of a string.
+
+### Boolean Mode
+
+The `--bool` flag instructs the model to answer with `true` or `false`, and normalizes the output:
+
+```bash
+ain Is Brad Pitt an actor? --bool
+# true
+
+ain Is the Earth flat? --bool
+# false
+
+# Combine with --json for structured envelope
+ain Is Python dynamically typed? --bool --json
+# { "ok": true, ..., "mode": "bool", "output": true }
+
+# Use in shell conditionals
+if [ "$(ain Is this valid JSON --bool)" = "true" ]; then
+  echo "Valid!"
+fi
+```
+
+Boolean mode accepts `true`/`yes` as truthy and `false`/`no` as falsy from the model. Any other response produces an error. Combinable with `--json`/`--jsonl` for structured output.
 
 ---
 
@@ -794,6 +823,7 @@ interface RunOptions {
   temperature?: number;        // Sampling temperature
   maxTokens?: number;          // Max output tokens
   jsonMode?: boolean;          // Request JSON output
+  boolMode?: boolean;          // Request boolean true/false output
   schema?: object;             // JSON Schema for validation
   noThink?: boolean;           // Suppress reasoning blocks
   maxRetries?: number;         // Retry attempts (default: 3)
@@ -813,7 +843,7 @@ interface RunResult {
   provider: string;            // Provider that handled the request
   model: string;               // Model that was used
   output: string;              // Raw text output
-  parsedOutput?: unknown;      // Parsed JSON (when jsonMode or schema is set)
+  parsedOutput?: unknown;      // Parsed JSON/boolean (when jsonMode, boolMode, or schema is set)
   usage?: {                    // Token usage (if reported by provider)
     prompt_tokens: number;
     completion_tokens: number;

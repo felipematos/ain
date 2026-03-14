@@ -110,6 +110,11 @@ describe('preprocessArgs', () => {
       expect(result).toEqual([N, S, 'run', 'Extract data', '--schema', 'schema.json']);
     });
 
+    it('expands --bo to --bool', () => {
+      const result = preprocessArgs([N, S, 'Hello', '--bo']);
+      expect(result).toEqual([N, S, 'ask', 'Hello', '--bool']);
+    });
+
     it('does not expand ambiguous abbreviations', () => {
       // --s matches --system, --stream, --skip-think, --schema, --system-file, --set-default
       const result = preprocessArgs([N, S, 'Hello', '--s']);

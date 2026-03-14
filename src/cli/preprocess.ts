@@ -31,7 +31,7 @@ const ALL_LONG_OPTIONS = [
   '--max-tokens', '--verbose', '--route', '--dry-run', '--policy',
   '--tier', '--stream', '--skip-think', '--no-think', '--retry',
   '--timeout', '--system-file', '--field', '--json', '--jsonl',
-  '--schema', '--prompt',
+  '--schema', '--prompt', '--bool',
   // Provider options
   '--base-url', '--api-key', '--set-default', '--template',
   // Model options
