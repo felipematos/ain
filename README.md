@@ -34,11 +34,11 @@ $ ain List 3 programming languages --json
 
 - **Built for automation.** Clean stdout for piping, diagnostics to stderr, JSON/JSONL/boolean output modes, schema validation, field extraction, and proper exit codes. AIN is a first-class citizen in shell scripts, CI pipelines, and cron jobs.
 
-- **Intelligent routing.** Don't hardcode models. AIN classifies your prompt and picks the right model tier automatically — fast models for simple tasks, reasoning models for complex ones. Define policies, set fallback chains, and let AIN handle the rest.
+- **Intelligent routing.** Don't hardcode models. AIN classifies your prompt across 6 tiers (ultra-fast, fast, general, reasoning, coding, creative) using multilingual heuristics or an optional LLM classifier — then routes to the right model via policies. Supports 7 languages, a built-in model catalog, and `ain routing catalog --update` to fetch the latest from OpenRouter.
 
 - **Agent-ready.** AIN integrates with AI agent frameworks like [OpenClaw](https://github.com/openclaw/openclaw) via the [`openclaw-plugin-ain`](https://www.npmjs.com/package/openclaw-plugin-ain) plugin. Your AIN providers, routing engine, and execution layer become tools that agents can call directly. Available on [ClawHub](https://clawhub.ai).
 
-- **Zero friction.** No quotes needed. Command aliases (`ain r`, `ain p`, `ain d`). Option abbreviations (`--st`, `--ro`). An onboarding wizard on first run. Templates for 14 providers. You're productive in seconds.
+- **Zero friction.** No quotes needed. Command aliases (`ain r`, `ain p`, `ain d`). Option abbreviations (`--st`, `--ro`). A 3-phase onboarding wizard on first run (providers → classifier → routing policy). Templates for 14 providers. Re-run `ain wizard` anytime.
 
 ```bash
 # Use it in scripts
@@ -256,7 +256,7 @@ ain <prompt words> [options]          # equivalent (default command)
 | `--retry <n>` | Max retry attempts |
 | `--skip-think` | Suppress reasoning/thinking preamble |
 | `--route` | Use intelligent routing |
-| `--tier <tier>` | Force a specific tier (`fast`, `general`, `reasoning`) |
+| `--tier <tier>` | Force a specific tier (`ultra-fast`, `fast`, `general`, `reasoning`, `coding`, `creative`) |
 | `--policy <name>` | Use a named routing policy |
 | `--dry-run` | Preview routing decision without executing |
 | `--verbose` | Show extra diagnostics on stderr |
@@ -437,6 +437,14 @@ ain routing simulate "<prompt>" --json
 ain routing policies
 ain routing policies --verbose    # Show tier details
 
+# Browse built-in model catalog
+ain routing catalog
+ain routing catalog --tier reasoning --json
+ain routing catalog --local        # Local-only models
+
+# Update catalog from OpenRouter API
+ain routing catalog --update
+
 # Scaffold a policies.yaml file
 ain routing init-policies
 ```
@@ -494,21 +502,19 @@ ain providers add --template groq --api-key env:GROQ_API_KEY --set-default
 
 ## Onboarding Wizard
 
-On first use (or when no providers are configured), AIN launches an interactive wizard that guides you through setup:
+On first use (or when no providers are configured), AIN launches a 3-phase interactive wizard:
 
-1. Presents a numbered list of provider templates (cloud + local)
-2. For cloud providers: prompts for API key (detects existing env vars)
-3. For local providers: confirms or customizes the base URL
-4. Tests the connection and auto-discovers models
-5. Sets the provider as default and shows getting-started commands
+**Phase 1: Providers** — Add as many providers as you want (loop). Each is tested on the spot. Providers with ultra-fast inference (Groq, Together, Fireworks) are tagged `[classifier]`.
+
+**Phase 2: Classifier** — Choose an LLM classifier for intelligent routing. AIN recommends ultra-low-latency providers like Groq with Llama 4 Scout (93% accuracy, ~230ms). Or skip and use the built-in heuristic classifier.
+
+**Phase 3: Routing Policy** — Map each tier (fast, general, reasoning, coding, creative) to a specific model from your configured providers, with tag-based suggestions.
 
 The wizard only runs in interactive terminals (TTY). For non-interactive environments, use `ain providers add --template <id>` instead.
 
-To re-run the wizard, remove all providers and run any prompt command:
-
 ```bash
-ain config init --force    # reset config
-ain Hello                  # triggers wizard
+ain wizard      # run or re-run the wizard anytime
+ain setup       # alias for ain wizard
 ```
 
 ---
@@ -698,15 +704,44 @@ ain routing init-policies
 
 ### Task Classification
 
-AIN classifies prompts into task types that map to model tiers:
+AIN classifies prompts using multilingual keyword patterns (EN, PT, ES, FR, DE, ZH, JA) or an optional LLM classifier for higher accuracy.
 
-| Task Type | Trigger Keywords | Model Tier |
+| Task Type | Example Keywords | Model Tier |
 |-----------|-----------------|------------|
-| Classification | classify, categorize, label, is this, what type | `fast` |
-| Extraction | extract, parse, find all, list all, get the | `fast` |
-| Generation | write, generate, create, compose, summarize, translate | `general` |
-| Reasoning | reason, analyze, explain why, think, step by step | `reasoning` |
+| Classification | classify, categorize, label, is this, spam or | `fast` (`ultra-fast` for trivial) |
+| Extraction | extract, parse, find all, list all, retrieve | `fast` |
+| Coding | function, implement, debug, refactor, algorithm | `coding` |
+| Creative | poem, story, song, brainstorm, screenplay | `creative` |
+| Reasoning | analyze, prove, solve, step by step, calculate | `reasoning` |
+| Generation | summarize, translate, rewrite, explain, draft | `general` |
 | Unknown | (no match) | `general` |
+
+#### LLM Classifier
+
+Enable an LLM classifier for 93% accuracy (vs 81% heuristic) with multilingual support:
+
+```yaml
+# In ~/.ain/config.yaml
+routing:
+  llmClassifier:
+    enabled: true
+    provider: groq                                         # ultra-low latency
+    model: meta-llama/llama-4-scout-17b-16e-instruct       # 93% accuracy, ~230ms
+    timeoutMs: 3000
+```
+
+The LLM classifier determines the tier, then the routing policy maps it to a specific model. On failure, it falls back to the heuristic classifier silently.
+
+#### Model Catalog
+
+AIN includes a built-in catalog of ~30 curated models with tier, cost, and locality data:
+
+```bash
+ain routing catalog                    # browse all models
+ain routing catalog --tier coding      # filter by tier
+ain routing catalog --local            # local-only models
+ain routing catalog --update           # fetch latest from OpenRouter API
+```
 
 ### Fallback Chains
 
