@@ -2,8 +2,10 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
 import { loadConfig, getConfigDir } from '../config/loader.js';
-import { classifyTask } from './classifier.js';
-import type { RoutingRequest, RoutingDecision, ModelTier, PolicyFile, RoutingPolicy } from './types.js';
+import { classifyWithHeuristic } from './classifier.js';
+import { classify } from './llm-classifier.js';
+import { getModelTiers } from './model-catalog.js';
+import type { RoutingRequest, RoutingDecision, ModelTier, PolicyFile, RoutingPolicy, ClassificationResult } from './types.js';
 
 export function getPolicyFilePath(): string {
   return join(getConfigDir(), 'policies.yaml');
@@ -16,11 +18,44 @@ export function loadPolicies(): PolicyFile | null {
   return parseYaml(raw) as PolicyFile;
 }
 
-export function route(request: RoutingRequest): RoutingDecision {
+function remapPremium(request: RoutingRequest): RoutingRequest {
+  if ((request.tier as string) === 'premium') {
+    return { ...request, tier: 'reasoning' };
+  }
+  return request;
+}
+
+// Classify the prompt: explicit tier > LLM classifier > heuristic
+async function classifyTier(request: RoutingRequest, config: ReturnType<typeof loadConfig>): Promise<{ tier: ModelTier; rationale: string }> {
+  if (request.tier) {
+    return { tier: request.tier, rationale: 'Explicit tier override' };
+  }
+
+  const routingConfig = config.routing;
+  const classification = await classify(request.prompt, routingConfig);
+  const rationale = classification.source === 'llm'
+    ? `LLM classifier (confidence=${classification.confidence})`
+    : `Heuristic classifier (task=${classification.taskType})`;
+  return { tier: classification.tier, rationale };
+}
+
+function classifyTierSync(request: RoutingRequest): { tier: ModelTier; rationale: string } {
+  if (request.tier) {
+    return { tier: request.tier, rationale: 'Explicit tier override' };
+  }
+  const classification = classifyWithHeuristic(request.prompt);
+  return { tier: classification.tier, rationale: `Heuristic classifier (task=${classification.taskType})` };
+}
+
+export async function route(request: RoutingRequest): Promise<RoutingDecision> {
+  request = remapPremium(request);
   const config = loadConfig();
   const policies = loadPolicies();
 
-  // Try policy-based routing first
+  // Classify tier first (LLM if enabled, then heuristic)
+  const { tier, rationale } = await classifyTier(request, config);
+
+  // Resolve named policy
   if (request.policyName) {
     if (!policies) {
       throw new Error(`Policy "${request.policyName}" requested but no policies file found at ${getPolicyFilePath()}`);
@@ -30,20 +65,45 @@ export function route(request: RoutingRequest): RoutingDecision {
       const available = Object.keys(policies.policies).join(', ') || '(none)';
       throw new Error(`Policy "${request.policyName}" not found. Available: ${available}`);
     }
-    return routeByPolicy(request, policy);
+    return applyPolicy(tier, rationale, policy);
   }
 
-  // Default policy if available
+  // Default policy
   if (policies?.defaultPolicy && policies.policies[policies.defaultPolicy]) {
-    return routeByPolicy(request, policies.policies[policies.defaultPolicy]!);
+    return applyPolicy(tier, rationale, policies.policies[policies.defaultPolicy]!);
   }
 
-  // Heuristic routing
-  return routeByHeuristic(request, config);
+  // No policy — resolve model from provider config
+  return resolveModel(tier, rationale, config);
 }
 
-function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingDecision {
-  const tier = request.tier ?? selectTierByTask(request.prompt);
+export function routeSync(request: RoutingRequest): RoutingDecision {
+  request = remapPremium(request);
+  const config = loadConfig();
+  const policies = loadPolicies();
+
+  const { tier, rationale } = classifyTierSync(request);
+
+  if (request.policyName) {
+    if (!policies) {
+      throw new Error(`Policy "${request.policyName}" requested but no policies file found at ${getPolicyFilePath()}`);
+    }
+    const policy = policies.policies[request.policyName];
+    if (!policy) {
+      const available = Object.keys(policies.policies).join(', ') || '(none)';
+      throw new Error(`Policy "${request.policyName}" not found. Available: ${available}`);
+    }
+    return applyPolicy(tier, rationale, policy);
+  }
+
+  if (policies?.defaultPolicy && policies.policies[policies.defaultPolicy]) {
+    return applyPolicy(tier, rationale, policies.policies[policies.defaultPolicy]!);
+  }
+
+  return resolveModel(tier, rationale, config);
+}
+
+function applyPolicy(tier: ModelTier, rationale: string, policy: RoutingPolicy): RoutingDecision {
   const tierConfig = policy.tiers[tier] ?? policy.tiers['general'];
 
   if (!tierConfig) {
@@ -62,7 +122,7 @@ function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingD
     provider: tierConfig.provider,
     model: tierConfig.model,
     tier,
-    rationale: `Policy routing: tier=${tier}, policy tier config`,
+    rationale: `Policy routing: tier=${tier}, ${rationale}`,
     params: {
       temperature: tierConfig.temperature,
       maxTokens: tierConfig.maxTokens,
@@ -71,8 +131,7 @@ function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingD
   };
 }
 
-function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loadConfig>): RoutingDecision {
-  const tier = request.tier ?? selectTierByTask(request.prompt);
+function resolveModel(tier: ModelTier, rationale: string, config: ReturnType<typeof loadConfig>): RoutingDecision {
   const defaultProvider = config.defaults?.provider;
   const defaultModel = config.defaults?.model;
 
@@ -85,11 +144,20 @@ function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loa
     throw new Error(`Default provider "${defaultProvider}" not found`);
   }
 
-  // Try to find a model matching the tier
+  // Try to find a model matching the tier: tags → alias → catalog
   const models = provider.models ?? [];
-  const tieredModel = models.find((m) =>
+  let tieredModel = models.find((m) =>
     m.tags?.includes(tier) || m.alias === tier
-  ) ?? models[0];
+  );
+
+  if (!tieredModel) {
+    tieredModel = models.find((m) => {
+      const catalogTiers = getModelTiers(m.id);
+      return catalogTiers?.includes(tier);
+    });
+  }
+
+  tieredModel ??= models[0];
 
   const modelId = tieredModel?.id ?? defaultModel ?? '';
 
@@ -101,22 +169,10 @@ function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loa
     provider: defaultProvider,
     model: modelId,
     tier,
-    rationale: `Heuristic routing: tier=${tier}, using ${tieredModel ? 'tier-matched' : 'default'} model`,
+    rationale: `Heuristic routing: tier=${tier}, ${rationale}`,
   };
 }
 
-function selectTierByTask(prompt: string): ModelTier {
-  const taskType = classifyTask(prompt);
-  const tierMap: Record<typeof taskType, ModelTier> = {
-    classification: 'fast',
-    extraction: 'fast',
-    generation: 'general',
-    reasoning: 'reasoning',
-    unknown: 'general',
-  };
-  return tierMap[taskType];
-}
-
-export function simulateRoute(request: RoutingRequest): RoutingDecision & { dryRun: true } {
-  return { ...route(request), dryRun: true };
+export async function simulateRoute(request: RoutingRequest): Promise<RoutingDecision & { dryRun: true }> {
+  return { ...(await route(request)), dryRun: true };
 }

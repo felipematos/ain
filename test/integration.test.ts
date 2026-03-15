@@ -157,7 +157,7 @@ describe.skipIf(SKIP)('Integration: OpenAI-compatible adapter', () => {
 
   it('route() classifies task and returns valid provider/model', async () => {
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Classify this email as spam or not spam' });
+    const decision = await route({ prompt: 'Classify this email as spam or not spam' });
     expect(decision.provider).toBeTruthy();
     expect(decision.model).toBeTruthy();
     expect(decision.tier).toBeTruthy();

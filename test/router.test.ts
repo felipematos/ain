@@ -21,6 +21,15 @@ vi.mock('../src/config/loader.js', () => ({
   getConfigDir: vi.fn(() => '/tmp/ain-test'),
 }));
 
+// Mock LLM classifier to avoid real API calls
+vi.mock('../src/routing/llm-classifier.js', () => ({
+  classify: vi.fn(async (prompt: string) => {
+    // Delegate to heuristic classifier for tests
+    const { classifyWithHeuristic } = await import('../src/routing/classifier.js');
+    return classifyWithHeuristic(prompt);
+  }),
+}));
+
 let mockPoliciesYaml: string | null = null;
 
 // Mock fs: control whether policies.yaml exists and its content
@@ -55,7 +64,7 @@ policies:
       - mac-mini/liquid/lfm2
 `;
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Write a summary', policyName: 'test-policy' });
+    const decision = await route({ prompt: 'Write a summary', policyName: 'test-policy' });
     expect(decision.fallbackChain).toHaveLength(2);
     expect(decision.fallbackChain![0]).toEqual({ provider: 'mac-mini', model: 'google/gemma' });
     expect(decision.fallbackChain![1]).toEqual({ provider: 'mac-mini', model: 'liquid/lfm2' });
@@ -72,7 +81,7 @@ policies:
       general: { provider: mac-mini, model: google/gemma }
 `;
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Write a summary', policyName: 'simple' });
+    const decision = await route({ prompt: 'Write a summary', policyName: 'simple' });
     expect(decision.fallbackChain).toBeUndefined();
     mockPoliciesYaml = null;
   });
@@ -91,7 +100,7 @@ policies:
         maxTokens: 512
 `;
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Write a summary', policyName: 'params-policy' });
+    const decision = await route({ prompt: 'Write a summary', policyName: 'params-policy' });
     expect(decision.params?.temperature).toBe(0.2);
     expect(decision.params?.maxTokens).toBe(512);
     mockPoliciesYaml = null;
@@ -107,7 +116,7 @@ policies:
       general: { provider: mac-mini, model: google/gemma }
 `;
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Write a summary', policyName: 'bare-policy' });
+    const decision = await route({ prompt: 'Write a summary', policyName: 'bare-policy' });
     expect(decision.params?.temperature).toBeUndefined();
     expect(decision.params?.maxTokens).toBeUndefined();
     mockPoliciesYaml = null;
@@ -125,52 +134,75 @@ policies:
       general: { provider: mac-mini, model: google/gemma }
 `;
     const { route } = await import('../src/routing/router.js');
-    expect(() => route({ prompt: 'Hi', policyName: 'nonexistent-policy' }))
-      .toThrow('Policy "nonexistent-policy" not found');
+    await expect(route({ prompt: 'Hi', policyName: 'nonexistent-policy' }))
+      .rejects.toThrow('Policy "nonexistent-policy" not found');
     mockPoliciesYaml = null;
   });
 
   it('throws when named policy is requested but no policies file exists', async () => {
     mockPoliciesYaml = null; // no file
     const { route } = await import('../src/routing/router.js');
-    expect(() => route({ prompt: 'Hi', policyName: 'some-policy' }))
-      .toThrow('no policies file found');
+    await expect(route({ prompt: 'Hi', policyName: 'some-policy' }))
+      .rejects.toThrow('no policies file found');
   });
 });
 
-describe('route', () => {
-  it('routes fast tasks to fast model', async () => {
+describe('route — heuristic routing', () => {
+  it('routes short classification tasks to ultra-fast tier', async () => {
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Classify this email as spam or not' });
-    expect(decision.tier).toBe('fast');
-    expect(decision.model).toBe('liquid/lfm2');
+    const decision = await route({ prompt: 'Classify this email as spam or not' });
+    expect(decision.tier).toBe('ultra-fast');
     expect(decision.provider).toBe('mac-mini');
   });
 
-  it('routes reasoning tasks to reasoning model', async () => {
+  it('routes reasoning tasks to reasoning model regardless of length', async () => {
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Analyze why this algorithm is inefficient step by step' });
+    const decision = await route({ prompt: 'Analyze why this is slow step by step' });
     expect(decision.tier).toBe('reasoning');
     expect(decision.model).toBe('qwen/qwen3');
   });
 
   it('routes generation tasks to general model', async () => {
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Write a summary of this document' });
+    const decision = await route({ prompt: 'Summarize this document' });
     expect(decision.tier).toBe('general');
     expect(decision.model).toBe('google/gemma');
   });
 
   it('includes rationale in decision', async () => {
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Hello' });
+    const decision = await route({ prompt: 'Hello' });
     expect(decision.rationale).toBeTruthy();
   });
 
   it('respects explicit tier override', async () => {
     const { route } = await import('../src/routing/router.js');
-    const decision = route({ prompt: 'Hello', tier: 'reasoning' });
+    const decision = await route({ prompt: 'Hello', tier: 'reasoning' });
     expect(decision.tier).toBe('reasoning');
     expect(decision.model).toBe('qwen/qwen3');
+  });
+});
+
+describe('route — premium backward compatibility', () => {
+  it('remaps premium tier to reasoning', async () => {
+    const { route } = await import('../src/routing/router.js');
+    const decision = await route({ prompt: 'Hello', tier: 'premium' as never });
+    expect(decision.tier).toBe('reasoning');
+    expect(decision.model).toBe('qwen/qwen3');
+  });
+});
+
+describe('routeSync', () => {
+  it('routes synchronously using heuristic classifier', async () => {
+    const { routeSync } = await import('../src/routing/router.js');
+    const decision = routeSync({ prompt: 'Classify this as spam' });
+    expect(decision.tier).toBe('ultra-fast');
+    expect(decision.provider).toBe('mac-mini');
+  });
+
+  it('remaps premium tier to reasoning in sync mode', async () => {
+    const { routeSync } = await import('../src/routing/router.js');
+    const decision = routeSync({ prompt: 'Hello', tier: 'premium' as never });
+    expect(decision.tier).toBe('reasoning');
   });
 });

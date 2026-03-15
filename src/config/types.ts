@@ -25,10 +25,23 @@ export const DefaultsConfigSchema = z.object({
   maxTokens: z.number().optional(),
 });
 
+export const LlmClassifierConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  provider: z.string().default('groq'),
+  model: z.string().default('llama-3.2-1b-instruct'),
+  timeoutMs: z.number().default(2000),
+});
+
+export const RoutingConfigSchema = z.object({
+  llmClassifier: LlmClassifierConfigSchema.optional(),
+  preferLocal: z.boolean().optional().default(false),
+});
+
 export const AinConfigSchema = z.object({
   version: z.literal(1),
   providers: z.record(ProviderConfigSchema).optional().default({}),
   defaults: DefaultsConfigSchema.optional().default({}),
+  routing: RoutingConfigSchema.optional(),
 });
 
 export type ModelConfig = z.infer<typeof ModelConfigSchema>;
