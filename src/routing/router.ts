@@ -2,7 +2,9 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
 import { loadConfig, getConfigDir } from '../config/loader.js';
-import { classifyTask } from './classifier.js';
+import { classifyWithHeuristic } from './classifier.js';
+import { classify } from './llm-classifier.js';
+import { getModelTiers } from './model-catalog.js';
 import type { RoutingRequest, RoutingDecision, ModelTier, PolicyFile, RoutingPolicy } from './types.js';
 
 export function getPolicyFilePath(): string {
@@ -16,7 +18,15 @@ export function loadPolicies(): PolicyFile | null {
   return parseYaml(raw) as PolicyFile;
 }
 
-export function route(request: RoutingRequest): RoutingDecision {
+function remapPremium(request: RoutingRequest): RoutingRequest {
+  if ((request.tier as string) === 'premium') {
+    return { ...request, tier: 'reasoning' };
+  }
+  return request;
+}
+
+export async function route(request: RoutingRequest): Promise<RoutingDecision> {
+  request = remapPremium(request);
   const config = loadConfig();
   const policies = loadPolicies();
 
@@ -38,12 +48,36 @@ export function route(request: RoutingRequest): RoutingDecision {
     return routeByPolicy(request, policies.policies[policies.defaultPolicy]!);
   }
 
-  // Heuristic routing
+  // Heuristic routing (now async with optional LLM classification)
   return routeByHeuristic(request, config);
 }
 
+export function routeSync(request: RoutingRequest): RoutingDecision {
+  request = remapPremium(request);
+  const config = loadConfig();
+  const policies = loadPolicies();
+
+  if (request.policyName) {
+    if (!policies) {
+      throw new Error(`Policy "${request.policyName}" requested but no policies file found at ${getPolicyFilePath()}`);
+    }
+    const policy = policies.policies[request.policyName];
+    if (!policy) {
+      const available = Object.keys(policies.policies).join(', ') || '(none)';
+      throw new Error(`Policy "${request.policyName}" not found. Available: ${available}`);
+    }
+    return routeByPolicy(request, policy);
+  }
+
+  if (policies?.defaultPolicy && policies.policies[policies.defaultPolicy]) {
+    return routeByPolicy(request, policies.policies[policies.defaultPolicy]!);
+  }
+
+  return routeByHeuristicSync(request, config);
+}
+
 function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingDecision {
-  const tier = request.tier ?? selectTierByTask(request.prompt);
+  const tier = request.tier ?? classifyWithHeuristic(request.prompt).tier;
   const tierConfig = policy.tiers[tier] ?? policy.tiers['general'];
 
   if (!tierConfig) {
@@ -71,8 +105,40 @@ function routeByPolicy(request: RoutingRequest, policy: RoutingPolicy): RoutingD
   };
 }
 
-function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loadConfig>): RoutingDecision {
-  const tier = request.tier ?? selectTierByTask(request.prompt);
+async function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loadConfig>): Promise<RoutingDecision> {
+  let tier = request.tier;
+  let rationale = '';
+
+  if (!tier) {
+    const routingConfig = config.routing;
+    const classification = await classify(request.prompt, routingConfig);
+    tier = classification.tier;
+    rationale = classification.source === 'llm'
+      ? `LLM classifier (confidence=${classification.confidence})`
+      : `Heuristic classifier (task=${classification.taskType})`;
+  } else {
+    rationale = `Explicit tier override`;
+  }
+
+  return resolveModel(request, tier, rationale, config);
+}
+
+function routeByHeuristicSync(request: RoutingRequest, config: ReturnType<typeof loadConfig>): RoutingDecision {
+  let tier = request.tier;
+  let rationale = '';
+
+  if (!tier) {
+    const classification = classifyWithHeuristic(request.prompt);
+    tier = classification.tier;
+    rationale = `Heuristic classifier (task=${classification.taskType})`;
+  } else {
+    rationale = `Explicit tier override`;
+  }
+
+  return resolveModel(request, tier, rationale, config);
+}
+
+function resolveModel(request: RoutingRequest, tier: ModelTier, rationale: string, config: ReturnType<typeof loadConfig>): RoutingDecision {
   const defaultProvider = config.defaults?.provider;
   const defaultModel = config.defaults?.model;
 
@@ -85,11 +151,21 @@ function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loa
     throw new Error(`Default provider "${defaultProvider}" not found`);
   }
 
-  // Try to find a model matching the tier
+  // Try to find a model matching the tier: tags → alias → catalog
   const models = provider.models ?? [];
-  const tieredModel = models.find((m) =>
+  let tieredModel = models.find((m) =>
     m.tags?.includes(tier) || m.alias === tier
-  ) ?? models[0];
+  );
+
+  if (!tieredModel) {
+    // Catalog-enhanced: match user's models against catalog to find tier
+    tieredModel = models.find((m) => {
+      const catalogTiers = getModelTiers(m.id);
+      return catalogTiers?.includes(tier);
+    });
+  }
+
+  tieredModel ??= models[0];
 
   const modelId = tieredModel?.id ?? defaultModel ?? '';
 
@@ -101,22 +177,10 @@ function routeByHeuristic(request: RoutingRequest, config: ReturnType<typeof loa
     provider: defaultProvider,
     model: modelId,
     tier,
-    rationale: `Heuristic routing: tier=${tier}, using ${tieredModel ? 'tier-matched' : 'default'} model`,
+    rationale: `Heuristic routing: tier=${tier}, ${rationale}`,
   };
 }
 
-function selectTierByTask(prompt: string): ModelTier {
-  const taskType = classifyTask(prompt);
-  const tierMap: Record<typeof taskType, ModelTier> = {
-    classification: 'fast',
-    extraction: 'fast',
-    generation: 'general',
-    reasoning: 'reasoning',
-    unknown: 'general',
-  };
-  return tierMap[taskType];
-}
-
-export function simulateRoute(request: RoutingRequest): RoutingDecision & { dryRun: true } {
-  return { ...route(request), dryRun: true };
+export async function simulateRoute(request: RoutingRequest): Promise<RoutingDecision & { dryRun: true }> {
+  return { ...(await route(request)), dryRun: true };
 }

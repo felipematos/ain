@@ -1,7 +1,10 @@
 import type { Command } from 'commander';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { route, simulateRoute, getPolicyFilePath, loadPolicies } from '../routing/router.js';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { simulateRoute, getPolicyFilePath, loadPolicies } from '../routing/router.js';
+import { MODEL_CATALOG, CATALOG_VERSION, getCatalogModelsByTier } from '../routing/model-catalog.js';
 import { getConfigDir, loadConfig } from '../config/loader.js';
+import type { ModelTier, CatalogModel } from '../routing/types.js';
 
 export function registerRoutingCommands(program: Command): void {
   const routing = program.command('routing').alias('rt').description('Routing policies and simulation');
@@ -10,11 +13,11 @@ export function registerRoutingCommands(program: Command): void {
     .command('simulate <prompt>')
     .description('Show which model would be selected for a prompt (dry run)')
     .option('--policy <name>', 'Policy name to use')
-    .option('--tier <tier>', 'Force a specific tier (fast, general, reasoning, premium)')
+    .option('--tier <tier>', 'Force a specific tier (ultra-fast, fast, general, reasoning, coding, creative)')
     .option('--json', 'Output as JSON')
-    .action((prompt: string, opts) => {
+    .action(async (prompt: string, opts) => {
       try {
-        const decision = simulateRoute({
+        const decision = await simulateRoute({
           prompt,
           policyName: opts.policy,
           tier: opts.tier,
@@ -78,6 +81,49 @@ export function registerRoutingCommands(program: Command): void {
     });
 
   routing
+    .command('catalog')
+    .description('List built-in model catalog')
+    .option('--tier <tier>', 'Filter by tier (ultra-fast, fast, general, reasoning, coding, creative)')
+    .option('--local', 'Show only locally available models')
+    .option('--json', 'Output as JSON')
+    .option('--update', 'Fetch latest model data from OpenRouter API')
+    .action(async (opts) => {
+      if (opts.update) {
+        await updateCatalog();
+        return;
+      }
+
+      let models: readonly CatalogModel[] = loadCatalog();
+
+      if (opts.tier) {
+        models = models.filter(m => m.tiers.includes(opts.tier as ModelTier));
+      }
+      if (opts.local) {
+        models = models.filter(m => m.local);
+      }
+
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(models, null, 2) + '\n');
+        return;
+      }
+
+      process.stdout.write(`Model Catalog (${CATALOG_VERSION}) — ${models.length} models\n\n`);
+      const tierOrder: ModelTier[] = ['ultra-fast', 'fast', 'general', 'reasoning', 'coding', 'creative'];
+      for (const tier of tierOrder) {
+        const tierModels = models.filter(m => m.tiers.includes(tier));
+        if (tierModels.length === 0) continue;
+        process.stdout.write(`  ${tier}:\n`);
+        for (const m of tierModels) {
+          const loc = m.local ? 'local' : 'cloud';
+          const costStr = m.cost ? `$${m.cost.input}/$${m.cost.output} per 1M` : 'free/local';
+          const paramsStr = m.params ? ` (${m.params})` : '';
+          process.stdout.write(`    ${m.id}${paramsStr}  [${loc}]  ${costStr}\n`);
+        }
+        process.stdout.write('\n');
+      }
+    });
+
+  routing
     .command('init-policies')
     .description('Create a starter policies file')
     .option('--force', 'Overwrite existing policies file')
@@ -135,8 +181,116 @@ policies:
         model: ${reasoningModel}
         temperature: 0.6
         maxTokens: 4096
+      # coding:
+      #   provider: ${providerName}
+      #   model: coding-model
+      #   temperature: 0.2
+      #   maxTokens: 4096
+      # creative:
+      #   provider: ${providerName}
+      #   model: creative-model
+      #   temperature: 0.9
+      #   maxTokens: 4096
 `;
       writeFileSync(path, starter, 'utf-8');
       process.stdout.write(`Policies file created at ${path}\n`);
     });
+}
+
+function loadCatalog(): readonly CatalogModel[] {
+  const userCatalogPath = join(getConfigDir(), 'model-catalog.json');
+  if (existsSync(userCatalogPath)) {
+    try {
+      const raw = readFileSync(userCatalogPath, 'utf-8');
+      return JSON.parse(raw) as CatalogModel[];
+    } catch {
+      // Fall through to built-in catalog
+    }
+  }
+  return MODEL_CATALOG;
+}
+
+async function updateCatalog(): Promise<void> {
+  process.stderr.write('Fetching model data from OpenRouter API...\n');
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/models');
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    const data = (await res.json()) as { data: Array<Record<string, unknown>> };
+    const models: CatalogModel[] = [];
+
+    for (const m of data.data) {
+      const id = m.id as string;
+      if (!id) continue;
+
+      const name = (m.name as string) ?? id;
+      const context = typeof m.context_length === 'number' ? m.context_length : undefined;
+      const pricing = m.pricing as { prompt?: string; completion?: string } | undefined;
+      const arch = m.architecture as { tokenizer?: string; modality?: string; instruct_type?: string | null } | undefined;
+
+      const cost = pricing?.prompt && pricing?.completion
+        ? { input: parseFloat(pricing.prompt) * 1_000_000, output: parseFloat(pricing.completion) * 1_000_000 }
+        : null;
+
+      const tiers = autoClassifyTiers(id, name);
+      if (tiers.length === 0) continue;
+
+      models.push({
+        id,
+        name,
+        tiers,
+        local: false,
+        context: context ?? undefined,
+        cost: cost && (cost.input > 0 || cost.output > 0) ? cost : null,
+      });
+    }
+
+    // Merge with built-in catalog (built-in entries for local models preserved)
+    const merged = [...MODEL_CATALOG.filter(m => m.local)];
+    const existingIds = new Set(merged.map(m => m.id));
+    for (const m of models) {
+      if (!existingIds.has(m.id)) {
+        merged.push(m);
+        existingIds.add(m.id);
+      }
+    }
+
+    const dir = getConfigDir();
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const catalogPath = join(dir, 'model-catalog.json');
+    writeFileSync(catalogPath, JSON.stringify(merged, null, 2), 'utf-8');
+    process.stdout.write(`Updated catalog: ${merged.length} models written to ${catalogPath}\n`);
+  } catch (err) {
+    process.stderr.write(`Error updating catalog: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(1);
+  }
+}
+
+function autoClassifyTiers(id: string, name: string): ModelTier[] {
+  const lower = (id + ' ' + name).toLowerCase();
+  const tiers: ModelTier[] = [];
+
+  if (/\b(r1|qwq|o3|o4|reasoning)\b/.test(lower)) tiers.push('reasoning');
+  if (/\b(coder|codex|devstral|code)\b/.test(lower)) tiers.push('coding');
+  if (/\b(creative|opus|grok)\b/.test(lower)) tiers.push('creative');
+
+  // Parameter-based classification
+  const paramMatch = lower.match(/(\d+(?:\.\d+)?)\s*b\b/);
+  if (paramMatch) {
+    const params = parseFloat(paramMatch[1]);
+    if (params < 4) tiers.push('ultra-fast');
+    else if (params < 14) tiers.push('fast');
+    else if (params < 80) tiers.push('general');
+  }
+
+  // Name-based fallbacks
+  if (tiers.length === 0) {
+    if (/mini|lite|flash-lite|small|tiny/.test(lower)) tiers.push('fast');
+    else if (/flash|turbo/.test(lower)) tiers.push('fast');
+    else if (/pro|sonnet|4\.1|gpt-5\b/.test(lower)) tiers.push('general');
+    else tiers.push('general');
+  }
+
+  return [...new Set(tiers)];
 }

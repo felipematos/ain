@@ -1,5 +1,5 @@
-export type ModelTier = 'fast' | 'general' | 'reasoning' | 'premium';
-export type TaskType = 'classification' | 'extraction' | 'generation' | 'reasoning' | 'unknown';
+export type ModelTier = 'ultra-fast' | 'fast' | 'general' | 'reasoning' | 'coding' | 'creative';
+export type TaskType = 'classification' | 'extraction' | 'generation' | 'reasoning' | 'coding' | 'creative' | 'unknown';
 
 export interface RoutingPolicy {
   name?: string;
@@ -41,4 +41,33 @@ export interface PolicyFile {
   version: 1;
   policies: Record<string, RoutingPolicy>;
   defaultPolicy?: string;
+}
+
+export interface CatalogModel {
+  id: string;
+  name: string;
+  tiers: ModelTier[];
+  local: boolean;
+  params?: string;
+  context?: number;
+  cost?: { input: number; output: number } | null;
+}
+
+export interface ClassificationResult {
+  taskType: TaskType;
+  tier: ModelTier;
+  confidence: number;
+  source: 'heuristic' | 'llm';
+}
+
+export interface LlmClassifierConfig {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  timeoutMs: number;
+}
+
+export interface RoutingConfig {
+  llmClassifier?: LlmClassifierConfig;
+  preferLocal?: boolean;
 }
