@@ -40,6 +40,14 @@ registerConfigCommands(program);
 registerDoctorCommand(program);
 registerRoutingCommands(program);
 
+program
+  .command('wizard')
+  .alias('setup')
+  .description('Run the interactive setup wizard (add providers, classifier, routing policy)')
+  .action(async () => {
+    await runWizard();
+  });
+
 async function main() {
   const argv = preprocessArgs(process.argv);
   const command = argv[2];

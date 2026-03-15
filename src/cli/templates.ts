@@ -8,6 +8,7 @@ export interface ProviderTemplate {
   requiresApiKey: boolean;
   signupUrl?: string;
   defaultModels?: Array<{ id: string; alias?: string; tags?: string[] }>;
+  classifierModel?: string; // recommended model for LLM classifier from this provider
 }
 
 export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
@@ -22,8 +23,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     requiresApiKey: true,
     signupUrl: 'https://platform.openai.com/api-keys',
     defaultModels: [
-      { id: 'gpt-4o', alias: 'gpt4', tags: ['general', 'reasoning'] },
-      { id: 'gpt-4o-mini', alias: 'gpt4-mini', tags: ['fast', 'cheap'] },
+      { id: 'gpt-4o', alias: 'gpt4', tags: ['general', 'coding'] },
+      { id: 'gpt-4o-mini', alias: 'gpt4-mini', tags: ['fast'] },
       { id: 'o3-mini', alias: 'o3', tags: ['reasoning'] },
     ],
   },
@@ -37,9 +38,9 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     requiresApiKey: true,
     signupUrl: 'https://console.anthropic.com/settings/keys',
     defaultModels: [
-      { id: 'claude-sonnet-4-6', alias: 'sonnet', tags: ['general', 'reasoning'] },
-      { id: 'claude-haiku-4-5-20251001', alias: 'haiku', tags: ['fast', 'cheap'] },
-      { id: 'claude-opus-4-6', alias: 'opus', tags: ['reasoning', 'premium'] },
+      { id: 'claude-sonnet-4-6', alias: 'sonnet', tags: ['general', 'coding'] },
+      { id: 'claude-haiku-4-5-20251001', alias: 'haiku', tags: ['fast'] },
+      { id: 'claude-opus-4-6', alias: 'opus', tags: ['reasoning', 'creative'] },
     ],
   },
   {
@@ -96,10 +97,11 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     category: 'cloud',
     requiresApiKey: true,
     signupUrl: 'https://console.groq.com/keys',
+    classifierModel: 'meta-llama/llama-4-scout-17b-16e-instruct',
     defaultModels: [
-      { id: 'llama-3.3-70b-versatile', alias: 'llama70', tags: ['general'] },
-      { id: 'llama-3.1-8b-instant', alias: 'llama8', tags: ['fast', 'cheap'] },
-      { id: 'gemma2-9b-it', alias: 'gemma', tags: ['fast'] },
+      { id: 'meta-llama/llama-4-scout-17b-16e-instruct', alias: 'scout', tags: ['fast', 'classifier'] },
+      { id: 'llama-3.3-70b-versatile', alias: 'llama70', tags: ['general', 'reasoning'] },
+      { id: 'llama-3.1-8b-instant', alias: 'llama8', tags: ['fast'] },
     ],
   },
   {
@@ -111,6 +113,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     category: 'cloud',
     requiresApiKey: true,
     signupUrl: 'https://api.together.ai/settings/api-keys',
+    classifierModel: 'meta-llama/Llama-3.1-8B-Instruct-Turbo',
     defaultModels: [
       { id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo', alias: 'llama70', tags: ['general'] },
       { id: 'Qwen/Qwen2.5-72B-Instruct-Turbo', alias: 'qwen72', tags: ['reasoning'] },
@@ -154,6 +157,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     category: 'cloud',
     requiresApiKey: true,
     signupUrl: 'https://fireworks.ai/account/api-keys',
+    classifierModel: 'accounts/fireworks/models/llama-v3p1-8b-instruct',
     defaultModels: [
       { id: 'accounts/fireworks/models/llama-v3p3-70b-instruct', alias: 'llama70', tags: ['general'] },
       { id: 'accounts/fireworks/models/llama-v3p1-8b-instruct', alias: 'llama8', tags: ['fast', 'cheap'] },

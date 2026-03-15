@@ -17,7 +17,7 @@ const COMMAND_ALIASES: Record<string, string> = {
 };
 
 const KNOWN_COMMANDS = new Set([
-  'ask', 'run', 'providers', 'models', 'config', 'doctor', 'routing',
+  'ask', 'run', 'providers', 'models', 'config', 'doctor', 'routing', 'wizard', 'setup',
 ]);
 
 const PROMPT_COMMANDS = new Set(['ask', 'run']);
