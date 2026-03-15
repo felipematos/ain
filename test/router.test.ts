@@ -155,20 +155,18 @@ describe('route — heuristic routing', () => {
     expect(decision.provider).toBe('mac-mini');
   });
 
-  it('routes reasoning tasks to reasoning model', async () => {
+  it('routes reasoning tasks to reasoning model regardless of length', async () => {
     const { route } = await import('../src/routing/router.js');
-    // Needs 20+ words for medium complexity to map reasoning→reasoning tier
-    const prompt = 'Analyze step by step why this approach to solving the optimization problem is inefficient and what alternative methods could yield better performance in terms of time and space complexity';
-    const decision = await route({ prompt });
+    const decision = await route({ prompt: 'Analyze why this is slow step by step' });
     expect(decision.tier).toBe('reasoning');
     expect(decision.model).toBe('qwen/qwen3');
   });
 
-  it('routes short generation tasks to fast tier', async () => {
+  it('routes generation tasks to general model', async () => {
     const { route } = await import('../src/routing/router.js');
     const decision = await route({ prompt: 'Summarize this document' });
-    expect(decision.tier).toBe('fast');
-    expect(decision.model).toBe('liquid/lfm2');
+    expect(decision.tier).toBe('general');
+    expect(decision.model).toBe('google/gemma');
   });
 
   it('includes rationale in decision', async () => {

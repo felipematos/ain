@@ -125,18 +125,24 @@ export function estimateComplexity(prompt: string): 'low' | 'medium' | 'high' {
   return 'high';
 }
 
-const TIER_MAP: Record<TaskType, Record<'low' | 'medium' | 'high', ModelTier>> = {
-  classification: { low: 'ultra-fast', medium: 'fast', high: 'fast' },
-  extraction:     { low: 'fast',       medium: 'fast', high: 'general' },
-  generation:     { low: 'fast',       medium: 'general', high: 'general' },
-  reasoning:      { low: 'general',    medium: 'reasoning', high: 'reasoning' },
-  coding:         { low: 'fast',       medium: 'coding', high: 'coding' },
-  creative:       { low: 'general',    medium: 'creative', high: 'creative' },
-  unknown:        { low: 'general',    medium: 'general', high: 'general' },
+// Direct task-to-tier mapping: task type IS the primary signal.
+// Complexity only matters for classification (trivial → ultra-fast, otherwise → fast).
+// Every other task maps to its natural tier regardless of prompt length,
+// because a 5-word coding prompt still needs a coding-capable model.
+const NATURAL_TIER: Record<TaskType, ModelTier> = {
+  classification: 'fast',
+  extraction:     'fast',
+  generation:     'general',
+  reasoning:      'reasoning',
+  coding:         'coding',
+  creative:       'creative',
+  unknown:        'general',
 };
 
 export function selectTierFromTask(taskType: TaskType, complexity: 'low' | 'medium' | 'high'): ModelTier {
-  return TIER_MAP[taskType][complexity];
+  // Only classification gets downgraded for trivially short prompts
+  if (taskType === 'classification' && complexity === 'low') return 'ultra-fast';
+  return NATURAL_TIER[taskType];
 }
 
 export function classifyWithHeuristic(prompt: string): ClassificationResult {

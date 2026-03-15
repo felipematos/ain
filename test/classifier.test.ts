@@ -161,43 +161,43 @@ describe('estimateComplexity', () => {
 });
 
 describe('selectTierFromTask', () => {
-  it('maps classification tasks correctly', () => {
+  it('maps classification: ultra-fast only for low complexity, otherwise fast', () => {
     expect(selectTierFromTask('classification', 'low')).toBe('ultra-fast');
     expect(selectTierFromTask('classification', 'medium')).toBe('fast');
     expect(selectTierFromTask('classification', 'high')).toBe('fast');
   });
 
-  it('maps extraction tasks correctly', () => {
+  it('maps extraction to fast regardless of complexity', () => {
     expect(selectTierFromTask('extraction', 'low')).toBe('fast');
     expect(selectTierFromTask('extraction', 'medium')).toBe('fast');
-    expect(selectTierFromTask('extraction', 'high')).toBe('general');
+    expect(selectTierFromTask('extraction', 'high')).toBe('fast');
   });
 
-  it('maps generation tasks correctly', () => {
-    expect(selectTierFromTask('generation', 'low')).toBe('fast');
+  it('maps generation to general regardless of complexity', () => {
+    expect(selectTierFromTask('generation', 'low')).toBe('general');
     expect(selectTierFromTask('generation', 'medium')).toBe('general');
     expect(selectTierFromTask('generation', 'high')).toBe('general');
   });
 
-  it('maps reasoning tasks correctly', () => {
-    expect(selectTierFromTask('reasoning', 'low')).toBe('general');
+  it('maps reasoning to reasoning regardless of complexity', () => {
+    expect(selectTierFromTask('reasoning', 'low')).toBe('reasoning');
     expect(selectTierFromTask('reasoning', 'medium')).toBe('reasoning');
     expect(selectTierFromTask('reasoning', 'high')).toBe('reasoning');
   });
 
-  it('maps coding tasks correctly', () => {
-    expect(selectTierFromTask('coding', 'low')).toBe('fast');
+  it('maps coding to coding regardless of complexity', () => {
+    expect(selectTierFromTask('coding', 'low')).toBe('coding');
     expect(selectTierFromTask('coding', 'medium')).toBe('coding');
     expect(selectTierFromTask('coding', 'high')).toBe('coding');
   });
 
-  it('maps creative tasks correctly', () => {
-    expect(selectTierFromTask('creative', 'low')).toBe('general');
+  it('maps creative to creative regardless of complexity', () => {
+    expect(selectTierFromTask('creative', 'low')).toBe('creative');
     expect(selectTierFromTask('creative', 'medium')).toBe('creative');
     expect(selectTierFromTask('creative', 'high')).toBe('creative');
   });
 
-  it('maps unknown tasks to general', () => {
+  it('maps unknown to general regardless of complexity', () => {
     expect(selectTierFromTask('unknown', 'low')).toBe('general');
     expect(selectTierFromTask('unknown', 'medium')).toBe('general');
     expect(selectTierFromTask('unknown', 'high')).toBe('general');
