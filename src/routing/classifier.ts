@@ -1,8 +1,17 @@
 import type { TaskType, ModelTier, ClassificationResult } from './types.js';
 
-// Priority order: most specific first to avoid false matches (e.g. "write a function" → coding, not generation)
+// Cap input to first 2000 chars for keyword matching — keywords are almost always near the start.
+// This avoids O(n) regex scans on huge prompts with attached files.
+const MAX_CLASSIFY_CHARS = 2000;
+
+// Creative keywords that override coding when both are present.
+// "Write a poem about Python" → creative, not coding.
+const CREATIVE_OVERRIDE = /\b(poem|poetry|story|stories|song|essay|fiction|narrative|novella|screenplay|haiku|limerick|sonnet|monologue|fable|myth|fairy tale|poema|poesia|história|canção|ficção|poème|poésie|histoire|chanson|Gedicht|Geschichte|Lied|Fiktion|Erzählung)\b/i;
+
+// Priority order: most specific first, with creative-override guard on coding.
 const CLASSIFICATION_PATTERNS: Array<{ pattern: RegExp; type: TaskType }> = [
   // 1. coding — EN + PT/ES/FR/DE/ZH/JA
+  //    Guarded: if creative keywords co-occur, skip this match (handled in classifyTask)
   {
     pattern: /\b(code review|codebase|source code|write code|program(?:ming)?|function(?:\s+(?:to|that|for|which))|implement|debug|refactor|algorithm|api endpoint|regex|unit test|compile|syntax error|variable|class\s|method\s|import\s|loop\s|array|typescript|javascript|python|rust|golang|sql\b|html|css|bug\b|error handling|stack trace|linter|eslint)/i,
     type: 'coding',
@@ -59,8 +68,9 @@ const CLASSIFICATION_PATTERNS: Array<{ pattern: RegExp; type: TaskType }> = [
   },
 
   // 5. reasoning — EN + multilingual
+  //    Includes "explain why" — more analytical than generation's generic "explain"
   {
-    pattern: /\b(reason|analyze|prove|solve|step by step|calculate|compare|evaluate|math|logic|deduce|infer|derive|theorem|equation|probability|statistical|hypothesis|contradiction)\b/i,
+    pattern: /\b(reason|analyze|prove|solve|step by step|calculate|compare|evaluate|math|logic|deduce|infer|derive|theorem|equation|probability|statistical|hypothesis|contradiction|explain why|explain how)\b/i,
     type: 'reasoning',
   },
   {
@@ -88,14 +98,28 @@ const CLASSIFICATION_PATTERNS: Array<{ pattern: RegExp; type: TaskType }> = [
 ];
 
 export function classifyTask(prompt: string): TaskType {
+  // Fix #5: only scan first 2000 chars for performance on huge prompts
+  const text = prompt.length > MAX_CLASSIFY_CHARS ? prompt.slice(0, MAX_CLASSIFY_CHARS) : prompt;
+
   for (const { pattern, type } of CLASSIFICATION_PATTERNS) {
-    if (pattern.test(prompt)) return type;
+    if (pattern.test(text)) {
+      // Fix #1/#2: if coding matched but creative keywords also present, yield to creative
+      if (type === 'coding' && CREATIVE_OVERRIDE.test(text)) {
+        continue;
+      }
+      return type;
+    }
   }
   return 'unknown';
 }
 
 export function estimateComplexity(prompt: string): 'low' | 'medium' | 'high' {
-  const tokenEstimate = prompt.split(/\s+/).length;
+  // Fast path: if char count alone already implies high, skip splitting
+  const charBasedEstimate = Math.ceil(prompt.length / 5);
+  if (charBasedEstimate >= 100) return 'high';
+
+  const wordCount = prompt.split(/\s+/).filter(Boolean).length;
+  const tokenEstimate = Math.max(wordCount, charBasedEstimate);
   if (tokenEstimate < 20) return 'low';
   if (tokenEstimate < 100) return 'medium';
   return 'high';

@@ -44,14 +44,35 @@ describe('classifyTask', () => {
     expect(classifyTask('Create an API endpoint for users')).toBe('coding');
   });
 
+  it('prioritizes creative over coding when creative keywords present', () => {
+    expect(classifyTask('Write a poem about Python programming')).toBe('creative');
+    expect(classifyTask('Write a story about debugging')).toBe('creative');
+    expect(classifyTask('Create a song about JavaScript')).toBe('creative');
+  });
+
   it('prioritizes creative over generation for creative prompts', () => {
     expect(classifyTask('Write a poem about the moon')).toBe('creative');
     expect(classifyTask('Write a short story about AI')).toBe('creative');
   });
 
+  it('classifies "explain why/how" as reasoning, not generation', () => {
+    expect(classifyTask('Explain why recursion causes stack overflow')).toBe('reasoning');
+    expect(classifyTask('Explain how binary search works')).toBe('reasoning');
+  });
+
+  it('classifies generic "explain" as generation', () => {
+    expect(classifyTask('Explain the concept of gravity')).toBe('generation');
+  });
+
   it('returns unknown for ambiguous prompts', () => {
     expect(classifyTask('Hello')).toBe('unknown');
     expect(classifyTask('What is 2+2?')).toBe('unknown');
+  });
+
+  it('only scans first 2000 chars (keywords buried past that are ignored)', () => {
+    const padding = 'A'.repeat(2500);
+    expect(classifyTask(padding + ' Summarize this text')).toBe('unknown');
+    expect(classifyTask('Summarize this: ' + padding)).toBe('generation');
   });
 
   // Multilingual tests
@@ -123,6 +144,19 @@ describe('estimateComplexity', () => {
   it('returns high for long prompts', () => {
     const prompt = 'word '.repeat(200);
     expect(estimateComplexity(prompt)).toBe('high');
+  });
+
+  it('returns high for huge non-space content (binary/base64)', () => {
+    expect(estimateComplexity('A'.repeat(100000))).toBe('high');
+  });
+
+  it('returns medium for moderate non-space content', () => {
+    expect(estimateComplexity('A'.repeat(200))).toBe('medium');
+  });
+
+  it('returns low only for truly short content', () => {
+    expect(estimateComplexity('hi')).toBe('low');
+    expect(estimateComplexity('')).toBe('low');
   });
 });
 
