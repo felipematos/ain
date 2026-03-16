@@ -24,9 +24,9 @@ jobs:
         env:
           SKIP_INTEGRATION: '1'
 
-      # Publish to npm
-      # --ignore-scripts skips prepublishOnly (already built and tested above)
-      - run: npm publish --access=public --provenance --ignore-scripts
+      # Publish ain-cli to npm (skip if already published)
+      - name: Publish @felipematos/ain-cli to npm
+        run: npm publish --access=public --provenance --ignore-scripts || echo "Version already published, skipping."
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -37,7 +37,7 @@ jobs:
           npm ci
           npm run build
           npm run test
-          npm publish --access=public --provenance --ignore-scripts
+          npm publish --access=public --provenance --ignore-scripts || echo "Version already published, skipping."
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

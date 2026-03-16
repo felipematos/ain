@@ -1,8 +1,13 @@
 {
   "name": "openclaw-plugin-ain",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "OpenClaw plugin for AIN — provider registry, routing, and execution",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felipematos/ain.git",
+    "directory": "packages/openclaw-plugin-ain"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

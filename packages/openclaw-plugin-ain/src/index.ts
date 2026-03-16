@@ -8,7 +8,7 @@ const plugin: OpenClawPluginDefinition = {
   id: 'openclaw-plugin-ain',
   name: 'AIN - AI Node',
   description: 'AIN provider registry, routing, and execution for OpenClaw',
-  version: '0.2.1',
+  version: '0.2.2',
 
   async register(api: OpenClawPluginApi) {
     const pluginConfig = api.pluginConfig as AinPluginConfig;
