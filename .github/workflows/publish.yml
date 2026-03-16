@@ -30,6 +30,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # Publish plugin to npm
+      - name: Publish openclaw-plugin-ain to npm
+        working-directory: packages/openclaw-plugin-ain
+        run: |
+          npm ci
+          npm run build
+          npm run test
+          npm publish --access=public --provenance --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       # ClawHub
       - name: Install ClawHub CLI
         run: npm install -g clawhub
