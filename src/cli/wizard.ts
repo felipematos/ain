@@ -12,6 +12,12 @@ import {
 import { ProviderConfigSchema } from '../config/types.js';
 import { createAdapter } from '../providers/openai-compatible.js';
 import { getPolicyFilePath } from '../routing/router.js';
+import {
+  detectOpenClaw,
+  readOpenClawProviders,
+  mapOpenClawProvider,
+  type OpenClawProvider,
+} from '../openclaw/detect.js';
 
 const useColor = process.stderr.isTTY && !process.env['NO_COLOR'];
 const bold = (s: string) => (useColor ? `\x1b[1m${s}\x1b[0m` : s);
@@ -59,7 +65,21 @@ export async function runWizard(): Promise<void> {
   // ═══════════════════════════════════════════════════════════════
   log(bold('  ── Phase 1: Providers ──\n'));
 
-  let firstProvider = true;
+  // Check for OpenClaw environment before manual provider setup
+  let openclawImported = false;
+  try {
+    const ocDetection = detectOpenClaw();
+    if (ocDetection.detected) {
+      const ocProviders = readOpenClawProviders(ocDetection);
+      if (ocProviders.length > 0) {
+        openclawImported = await offerOpenClawImport(ocProviders);
+      }
+    }
+  } catch {
+    // OpenClaw detection failed silently — proceed with normal wizard
+  }
+
+  let firstProvider = !openclawImported;
   let addMore = true;
 
   while (addMore) {
@@ -181,6 +201,100 @@ export async function runWizard(): Promise<void> {
   log(`    ${cyan('ain wizard')}                             ${dim('# re-run setup anytime')}`);
   log(`    ${cyan('ain doctor')}                             ${dim('# health check')}`);
   log('');
+}
+
+async function offerOpenClawImport(ocProviders: OpenClawProvider[]): Promise<boolean> {
+  const names = ocProviders.map(p => p.name);
+  const modelCount = ocProviders.reduce((sum, p) => sum + p.models.length, 0);
+
+  log(`  ${green('✓')} ${bold('OpenClaw environment detected')} with ${ocProviders.length} provider(s): ${names.join(', ')}`);
+  if (modelCount > 0) {
+    log(`    ${dim(`${modelCount} model(s) in catalog`)}`);
+  }
+  log('');
+
+  const answer = await ask(`  ${bold('Import all from OpenClaw?')} ${dim('[Y/n]')}: `);
+  let toImport = ocProviders;
+
+  if (answer.toLowerCase() === 'n' || answer.toLowerCase() === 'no') {
+    // Let user deselect individual providers
+    toImport = [];
+    for (const oc of ocProviders) {
+      const include = await ask(`    Import ${bold(oc.name)}? ${dim('[Y/n]')}: `);
+      if (!include || include.toLowerCase() === 'y' || include.toLowerCase() === 'yes') {
+        toImport.push(oc);
+      }
+    }
+  }
+
+  if (toImport.length === 0) {
+    log(`\n  ${dim('Skipped OpenClaw import. You can add providers manually.')}\n`);
+    return false;
+  }
+
+  let imported = 0;
+  let isFirst = true;
+  const config = loadUserConfig();
+
+  for (const oc of toImport) {
+    const mapped = mapOpenClawProvider(oc);
+    const existing = config.providers[mapped.name];
+
+    if (existing) {
+      const action = await handleCollision(mapped.name);
+      if (action === 'skip') continue;
+      if (action === 'merge') {
+        // Merge models from import into existing provider
+        const existingIds = new Set((existing.models ?? []).map(m => m.id));
+        const newModels = mapped.models.filter(m => !existingIds.has(m.id));
+        existing.models = [...(existing.models ?? []), ...newModels];
+        config.providers[mapped.name] = existing;
+        saveConfig(config);
+        log(`    ${green('✓')} Merged ${newModels.length} new model(s) into ${bold(mapped.name)}`);
+        imported++;
+        continue;
+      }
+      // action === 'overwrite' — fall through to normal add
+    }
+
+    try {
+      const validated = ProviderConfigSchema.parse(mapped.provider);
+      addProvider(mapped.name, validated);
+
+      if (isFirst) {
+        const cfg = loadUserConfig();
+        cfg.defaults = {
+          ...cfg.defaults,
+          provider: mapped.name,
+          model: mapped.models[0]?.id,
+        };
+        saveConfig(cfg);
+        isFirst = false;
+      }
+
+      log(`    ${green('✓')} ${bold(mapped.name)} — ${mapped.models.length} model(s)${mapped.template ? '' : dim(' (custom)')}`);
+      imported++;
+    } catch (err) {
+      log(`    ${yellow('!')} Failed to import ${mapped.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (imported > 0) {
+    log(`\n  ${green('✓')} Imported ${imported} provider(s) from OpenClaw.\n`);
+  }
+
+  return imported > 0;
+}
+
+async function handleCollision(name: string): Promise<'skip' | 'merge' | 'overwrite'> {
+  log(`\n    ${yellow('!')} Provider ${bold(name)} already exists.`);
+  log(`      ${cyan('1')}. Skip`);
+  log(`      ${cyan('2')}. Merge models`);
+  log(`      ${cyan('3')}. Overwrite`);
+  const choice = await ask(`      ${bold('Action')} ${dim('[1-3, default: 1]')}: `);
+  if (choice === '2') return 'merge';
+  if (choice === '3') return 'overwrite';
+  return 'skip';
 }
 
 async function pickProvider(): Promise<ProviderTemplate | null> {

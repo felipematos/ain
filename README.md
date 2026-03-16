@@ -112,7 +112,8 @@ const result = await run({ prompt: 'Hello', provider: 'openai' });
 - **Retry with backoff** — configurable retry logic for transient failures
 - **Project overlays** — per-project `ain.yaml` overrides checked into repos
 - **Dual-use** — works as a CLI tool and as a Node.js library
-- **Zero runtime bloat** — only 3 production dependencies (commander, yaml, zod)
+- **OpenClaw import** — auto-detect OpenClaw environments and import providers/models in one step
+- **Zero runtime bloat** — only 4 production dependencies (commander, yaml, zod, json5)
 - **No quotes needed** — `ain What is the capital of Brazil?` just works
 - **Command aliases** — `a`(sk), `r`(un), `p`(roviders), `m`(odels), `c`(onfig), `d`(octor), `rt`(routing)
 - **Option abbreviations** — `--st` for `--stream`, `--ro` for `--route`, and more
@@ -358,6 +359,10 @@ ain p remove <name>
 
 # Set default provider
 ain p set-default <name>
+
+# Import providers from OpenClaw
+ain p import-openclaw             # Interactive: select which to import
+ain p import-oc --yes             # Import all without prompting
 ```
 
 **Examples:**
@@ -504,7 +509,7 @@ ain providers add --template groq --api-key env:GROQ_API_KEY --set-default
 
 On first use (or when no providers are configured), AIN launches a 3-phase interactive wizard:
 
-**Phase 1: Providers** — Add as many providers as you want (loop). Each is tested on the spot. Providers with ultra-fast inference (Groq, Together, Fireworks) are tagged `[classifier]`.
+**Phase 1: Providers** — If an OpenClaw environment is detected, AIN offers to import all providers and models automatically (with opt-out per provider). Otherwise, add providers manually from templates. Each is tested on the spot. Providers with ultra-fast inference (Groq, Together, Fireworks) are tagged `[classifier]`.
 
 **Phase 2: Classifier** — Choose an LLM classifier for intelligent routing. AIN recommends ultra-low-latency providers like Groq with Llama 4 Scout (93% accuracy, ~230ms). Or skip and use the built-in heuristic classifier.
 
@@ -1046,7 +1051,7 @@ AIN follows a six-layer architecture that separates concerns cleanly:
 - **Routing is separate from execution** — "which model" is a different concern from "how to call it"
 - **OpenAI-compatible adapter first** — a single adapter unlocks LM Studio, Ollama, vLLM, OpenAI, and many more
 - **Shell-safe by default** — clean stdout for piping, diagnostics to stderr, meaningful exit codes
-- **Minimal dependencies** — only 3 production deps: commander, yaml, zod
+- **Minimal dependencies** — only 4 production deps: commander, yaml, zod, json5
 
 ### Module Map
 
@@ -1058,6 +1063,7 @@ src/
 ├── execution/     # run(), stream(), schema validation, think-block filtering
 ├── output/        # Output formatting (text, JSON envelope, JSONL)
 ├── routing/       # route(), simulateRoute(), classifyTask(), policy loading
+├── openclaw/      # OpenClaw detection, config reading, provider import
 ├── doctor/        # Health checks (config, auth, connectivity)
 ├── shared/        # Retry logic with exponential backoff
 └── index.ts       # Library exports

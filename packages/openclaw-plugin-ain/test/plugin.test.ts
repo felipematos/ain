@@ -182,8 +182,8 @@ describe('OpenClaw plugin registration', () => {
 
   it('has correct plugin metadata', async () => {
     const plugin = (await import('../src/index.js')).default;
-    expect(plugin.id).toBe('ain');
+    expect(plugin.id).toBe('openclaw-plugin-ain');
     expect(plugin.name).toBe('AIN - AI Node');
-    expect(plugin.version).toBe('0.1.0');
+    expect(plugin.version).toBe('0.2.0');
   });
 });

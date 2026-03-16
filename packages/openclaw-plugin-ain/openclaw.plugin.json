@@ -1,5 +1,5 @@
 {
-  "id": "ain",
+  "id": "openclaw-plugin-ain",
   "configSchema": {
     "type": "object",
     "properties": {

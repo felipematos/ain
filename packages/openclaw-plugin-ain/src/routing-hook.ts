@@ -9,7 +9,7 @@ export function registerRoutingHook(api: OpenClawPluginApi, policyName?: string)
       if (!prompt) return;
 
       try {
-        const decision = route({
+        const decision = await route({
           prompt,
           policyName,
         });

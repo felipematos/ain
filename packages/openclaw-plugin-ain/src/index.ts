@@ -5,10 +5,10 @@ import { registerRoutingHook } from './routing-hook.js';
 import type { OpenClawPluginDefinition, OpenClawPluginApi, AinPluginConfig } from './types.js';
 
 const plugin: OpenClawPluginDefinition = {
-  id: 'ain',
+  id: 'openclaw-plugin-ain',
   name: 'AIN - AI Node',
   description: 'AIN provider registry, routing, and execution for OpenClaw',
-  version: '0.1.0',
+  version: '0.2.0',
 
   async register(api: OpenClawPluginApi) {
     const pluginConfig = api.pluginConfig as AinPluginConfig;

@@ -29,6 +29,7 @@ src/
   execution/     # Request building, API calls, response normalization
   output/        # Output formatting (text, JSON, schema)
   routing/       # Policy-based model selection
+  openclaw/      # OpenClaw detection, config reading, provider import
   doctor/        # Health checks and diagnostics
   shared/        # Common utilities
   index.ts       # Library exports
