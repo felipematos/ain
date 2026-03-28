@@ -211,7 +211,7 @@ async function runOnce(options: RunOptions): Promise<RunResult> {
     () => adapter.chat(request),
     options.maxRetries !== undefined ? { maxAttempts: options.maxRetries } : {},
   );
-  const content = response.choices[0]?.message?.content;
+  const content = response.choices?.[0]?.message?.content;
   if (content === null || content === undefined || content === '') {
     throw new Error('Provider returned an empty response');
   }
