@@ -32,9 +32,11 @@ export function registerRunCommand(program: Command): void {
     .option('--no-think', 'Alias for --skip-think')
     .option('-v, --verbose', 'Print provider/model/token info to stderr')
     .action(async (promptArg: string | undefined, opts) => {
-      // useJson = ask the model to return JSON (affects system prompt)
+      // useJson = ask the model to return JSON (affects system prompt + parsing)
       // useEnvelope = wrap output in JSON envelope (affects rendering only)
-      const useJson = opts.json || !!opts.schema || !!opts.field;
+      // --jsonl in the machine-oriented `run` command implies JSON mode:
+      // a JSONL envelope with mode:"text" is useless for scripting.
+      const useJson = opts.json || opts.jsonl || !!opts.schema || !!opts.field;
       const useBool = !!opts.bool;
       const useEnvelope = useJson || opts.jsonl;
       try {
@@ -70,14 +72,19 @@ export function registerRunCommand(program: Command): void {
         let schema: object | undefined;
         if (opts.schema) {
           try {
-            const parsed: unknown = JSON.parse(readFileSync(opts.schema as string, 'utf-8'));
+            const schemaInput = opts.schema as string;
+            // Accept inline JSON string (starts with '{') or a file path
+            const raw = schemaInput.trimStart().startsWith('{')
+              ? schemaInput
+              : readFileSync(schemaInput, 'utf-8');
+            const parsed: unknown = JSON.parse(raw);
             if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
               throw new Error('Schema must be a JSON object');
             }
             schema = parsed;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            throw new Error(`Failed to load schema file "${opts.schema as string}": ${msg}`);
+            throw new Error(`Failed to load schema "${opts.schema as string}": ${msg}`);
           }
         }
 

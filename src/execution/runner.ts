@@ -39,9 +39,37 @@ export async function* stream(options: RunOptions): AsyncGenerator<string> {
   throw lastError ?? new Error('All streaming candidates failed');
 }
 
+/**
+ * Parse "provider/model" notation when --provider is not explicitly given.
+ * If the prefix before '/' matches a configured provider, route to it and
+ * strip the prefix from the model ID sent to the API.
+ * E.g. "--model alibaba/kimi-k2.5" → provider=alibaba, model=kimi-k2.5
+ */
+function resolveProviderModelFromNotation(options: RunOptions): {
+  resolvedProviderName: string | undefined;
+  resolvedModel: string | undefined;
+} {
+  if (!options.provider && options.model) {
+    const slashIdx = options.model.indexOf('/');
+    if (slashIdx > 0) {
+      const prefix = options.model.slice(0, slashIdx);
+      const cfg = loadConfig();
+      if (cfg.providers[prefix]) {
+        return {
+          resolvedProviderName: prefix,
+          resolvedModel: options.model.slice(slashIdx + 1),
+        };
+      }
+    }
+  }
+  return { resolvedProviderName: options.provider, resolvedModel: options.model };
+}
+
 async function* streamOnce(options: RunOptions): AsyncGenerator<string> {
-  const { name: providerName, provider } = resolveProvider(options.provider);
-  const modelId = resolveModel(options.model, providerName);
+  const { resolvedProviderName, resolvedModel } = resolveProviderModelFromNotation(options);
+
+  const { name: providerName, provider } = resolveProvider(resolvedProviderName);
+  const modelId = resolveModel(resolvedModel, providerName);
   if (!modelId) throw new Error('No model specified and no default model configured.');
 
   const configDefaults = loadConfig().defaults;
@@ -187,8 +215,10 @@ export async function run(options: RunOptions): Promise<RunResult> {
 }
 
 async function runOnce(options: RunOptions): Promise<RunResult> {
-  const { name: providerName, provider } = resolveProvider(options.provider);
-  const modelId = resolveModel(options.model, providerName);
+  const { resolvedProviderName, resolvedModel } = resolveProviderModelFromNotation(options);
+
+  const { name: providerName, provider } = resolveProvider(resolvedProviderName);
+  const modelId = resolveModel(resolvedModel, providerName);
 
   if (!modelId) {
     throw new Error('No model specified and no default model configured. Use --model or set defaults.model in config.');
