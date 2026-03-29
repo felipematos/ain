@@ -122,7 +122,9 @@ export function registerRunCommand(program: Command): void {
           boolMode: useBool,
           schema,
           noThink: opts.skipThink || opts.think === false,
-          maxRetries: opts.retry as number | undefined,
+          // run is machine-oriented: default to 1 attempt (fast-fail for scripts/pipelines).
+          // Use --retry N to override.
+          maxRetries: opts.retry !== undefined ? (opts.retry as number) : 1,
           timeoutMs: opts.timeout as number | undefined,
           fallbackChain,
         };

@@ -236,7 +236,7 @@ export function mapOpenClawProvider(oc: OpenClawProvider): OpenClawImportResult 
     kind: 'openai-compatible' as const,
     baseUrl,
     ...(apiKey ? { apiKey } : {}),
-    timeoutMs: 60000,
+    timeoutMs: 30000,
     models,
   };
 

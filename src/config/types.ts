@@ -14,7 +14,7 @@ export const ProviderConfigSchema = z.object({
   baseUrl: z.string().url(),
   apiKey: z.string().optional(),
   defaultHeaders: z.record(z.string()).optional(),
-  timeoutMs: z.number().optional().default(60000),
+  timeoutMs: z.number().optional().default(30000),
   models: z.array(ModelConfigSchema).optional().default([]),
 });
 

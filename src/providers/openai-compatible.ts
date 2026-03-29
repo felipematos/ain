@@ -51,7 +51,7 @@ export class OpenAICompatibleAdapter {
   constructor(private config: ProviderConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.apiKey = resolveApiKey(config.apiKey);
-    this.timeoutMs = config.timeoutMs ?? 60000;
+    this.timeoutMs = config.timeoutMs ?? 30000;
     this.headers = {
       'Content-Type': 'application/json',
       ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
@@ -65,11 +65,107 @@ export class OpenAICompatibleAdapter {
   }
 
   async chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-    const response = await this.fetch('/chat/completions', {
-      method: 'POST',
-      body: JSON.stringify({ ...request, stream: false }),
-    });
-    return response as ChatCompletionResponse;
+    const response = await this.fetchChatCompletion(request);
+    return response;
+  }
+
+  /**
+   * Send a non-streaming chat request, but gracefully handle providers that
+   * return SSE (streaming) format regardless of stream:false.
+   * Reads the body as text first, then either JSON.parse or SSE-assembles.
+   */
+  private async fetchChatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+    const url = `${this.baseUrl}/chat/completions`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const response = await globalThis.fetch(url, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ ...request, stream: false }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+      }
+
+      const contentType = response.headers?.get('content-type') ?? '';
+      const isSSE = contentType.includes('text/event-stream');
+
+      if (isSSE) {
+        // Provider returned streaming format — assemble into a single response
+        return await this.assembleSseResponse(response, controller.signal);
+      }
+
+      // Normal JSON response
+      const text = await response.text();
+      return JSON.parse(text) as ChatCompletionResponse;
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') {
+        throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Read an SSE response body and assemble all content deltas into a single
+   * ChatCompletionResponse (same shape as the non-streaming response).
+   */
+  private async assembleSseResponse(
+    response: Response,
+    _signal: AbortSignal,
+  ): Promise<ChatCompletionResponse> {
+    if (!response.body) throw new Error('No response body for SSE assembly');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    let id = '';
+    let model = '';
+    let finishReason = '';
+    let usage: ChatCompletionResponse['usage'] | undefined;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (!trimmed.startsWith('data: ')) continue;
+        try {
+          const chunk = JSON.parse(trimmed.slice(6));
+          if (!id && chunk.id) id = chunk.id;
+          if (!model && chunk.model) model = chunk.model;
+          if (chunk.usage) usage = chunk.usage;
+          const delta = chunk?.choices?.[0]?.delta?.content;
+          if (delta) content += delta;
+          const fr = chunk?.choices?.[0]?.finish_reason;
+          if (fr) finishReason = fr;
+        } catch {
+          // skip malformed SSE chunks
+        }
+      }
+    }
+
+    return {
+      id,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model,
+      choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: finishReason }],
+      ...(usage ? { usage } : {}),
+    };
   }
 
   async *chatStream(request: ChatCompletionRequest): AsyncGenerator<string> {
