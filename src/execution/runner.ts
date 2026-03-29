@@ -153,12 +153,36 @@ function buildMessages(options: RunOptions): ChatMessage[] {
 }
 
 function buildRequest(modelId: string, messages: ChatMessage[], options: RunOptions) {
-  return {
+  const request: {
+    model: string;
+    messages: ChatMessage[];
+    temperature?: number;
+    max_tokens?: number;
+    response_format?: { type: 'json_object' } | { type: 'json_schema'; json_schema: unknown };
+  } = {
     model: modelId,
     messages,
     ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
     ...(options.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
   };
+
+  // When structured output is requested, ask the provider for JSON explicitly.
+  // Prefer json_schema when a schema is available so providers that support native
+  // constrained decoding don't invent scalar/plaintext outputs.
+  if (options.schema) {
+    request.response_format = {
+      type: 'json_schema',
+      json_schema: {
+        name: 'ain_structured_output',
+        schema: options.schema,
+        strict: true,
+      },
+    };
+  } else if (options.jsonMode) {
+    request.response_format = { type: 'json_object' };
+  }
+
+  return request;
 }
 
 function filterThinkTokens(

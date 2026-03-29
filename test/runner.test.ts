@@ -127,6 +127,8 @@ describe('run — JSON mode', () => {
     const { run } = await import('../src/execution/runner.js');
     const result = await run({ prompt: 'Give me JSON', jsonMode: true });
     expect(result.parsedOutput).toEqual({ key: 'value' });
+    const req = mockChat.mock.calls[0]![0] as { response_format?: unknown };
+    expect(req.response_format).toEqual({ type: 'json_object' });
   });
 
   it('strips markdown fences from JSON output', async () => {
@@ -155,6 +157,11 @@ describe('run — schema mode', () => {
     const { run } = await import('../src/execution/runner.js');
     const result = await run({ prompt: 'Give me data', schema });
     expect(result.parsedOutput).toEqual({ name: 'test', value: 42 });
+    const req = mockChat.mock.calls[0]![0] as { response_format?: any };
+    expect(req.response_format?.type).toBe('json_schema');
+    expect(req.response_format?.json_schema?.name).toBe('ain_structured_output');
+    expect(req.response_format?.json_schema?.schema).toEqual(schema);
+    expect(req.response_format?.json_schema?.strict).toBe(true);
   });
 
   it('throws on schema validation failure — missing required field', async () => {
